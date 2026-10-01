@@ -1,0 +1,14 @@
+# Planilhas e dados de clientes nunca vão para o Git
+data/
+*.xlsx
+*.xls
+*.csv
+
+# Segredos
+.env
+.env.*
+!.env.example
+
+node_modules/
+dist/
+__pycache__/
