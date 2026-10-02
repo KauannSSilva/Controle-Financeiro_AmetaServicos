@@ -1,0 +1,185 @@
+// Modelo de dados da Fase 1. Decisões e mapeamento da planilha: docs/fase-1-banco-de-dados.md
+// Regras que o Prisma não expressa (CHECKs e a view vw_itens_po) ficam no SQL das migrações.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum StatusPo {
+  AGUARDANDO_LIBERACAO
+  EMITIR_NOTA
+  EM_EXECUCAO
+  EMITIDA
+  CANCELADO
+
+  @@map("status_po")
+}
+
+enum PerfilUsuario {
+  ADMIN
+  OPERADOR
+  VISUALIZADOR
+
+  @@map("perfil_usuario")
+}
+
+/// Uma linha por número de P.O (sem os apóstrofos que a planilha usa para repetir o número).
+model OrdemCompra {
+  id              String    @id @default(uuid()) @db.Uuid
+  numeroPo        String    @unique @map("numero_po") @db.VarChar(20)
+  criadoEm        DateTime  @default(now()) @map("criado_em") @db.Timestamptz(3)
+  atualizadoEm    DateTime  @updatedAt @map("atualizado_em") @db.Timestamptz(3)
+  criadoPorId     String?   @map("criado_por") @db.Uuid
+  atualizadoPorId String?   @map("atualizado_por") @db.Uuid
+  excluidoEm      DateTime? @map("excluido_em") @db.Timestamptz(3)
+
+  itens ItemPo[]
+
+  @@map("ordens_compra")
+}
+
+/// Uma linha da planilha: a P.O inteira (ITEM "10 20 30") ou um item faturado separadamente.
+/// O status vive aqui porque itens da mesma P.O podem estar em status diferentes.
+model ItemPo {
+  id              String    @id @default(uuid()) @db.Uuid
+  ordemCompraId   String    @map("ordem_compra_id") @db.Uuid
+  /// 10, 20, 30, 40, 50, "10 20", "10 20 30", "10 20 30 40" ou "10 20 30 40 50" (CHECK no banco)
+  item            String?   @db.VarChar(20)
+  idSite          String?   @map("id_site") @db.VarChar(50)
+  site            String?   @db.VarChar(100)
+  fase            String?   @db.VarChar(20)
+  /// NR ou 5G (CHECK no banco)
+  tecnologia      String?   @db.VarChar(5)
+  projeto         String?   @db.VarChar(150)
+  uf              String?   @db.Char(2)
+  /// CLARO, VIVO ou AT&T (CHECK no banco)
+  operadora       String?   @db.VarChar(10)
+  valorOriginal   Decimal?  @map("valor_original") @db.Decimal(12, 2)
+  /// Percentual a receber (88 = recebe 88% do valor). Nulo = sem multa.
+  percentualMulta Decimal?  @map("percentual_multa") @db.Decimal(5, 2)
+  possuiMulta     Boolean   @default(false) @map("possui_multa")
+  status          StatusPo
+  /// Texto original do STATUS na planilha (ex.: "EMITIDA NOTA FISCAL C/ MULTA")
+  statusOrigem    String?   @map("status_origem") @db.VarChar(60)
+  numeroNfse      String?   @map("numero_nfse") @db.VarChar(30)
+  dataEmissao     DateTime? @map("data_emissao") @db.Date
+  numeroMigo      String?   @map("numero_migo") @db.VarChar(30)
+  observacoes     String?
+  /// Linha de origem na planilha; chave da importação idempotente
+  linhaPlanilha   Int?      @unique @map("linha_planilha")
+  criadoEm        DateTime  @default(now()) @map("criado_em") @db.Timestamptz(3)
+  atualizadoEm    DateTime  @updatedAt @map("atualizado_em") @db.Timestamptz(3)
+  criadoPorId     String?   @map("criado_por") @db.Uuid
+  atualizadoPorId String?   @map("atualizado_por") @db.Uuid
+  excluidoEm      DateTime? @map("excluido_em") @db.Timestamptz(3)
+
+  ordemCompra OrdemCompra      @relation(fields: [ordemCompraId], references: [id], onDelete: Restrict)
+  historico   HistoricoStatus[]
+
+  @@index([status])
+  @@index([dataEmissao])
+  @@index([numeroNfse])
+  @@index([ordemCompraId])
+  @@index([operadora])
+  @@map("itens_po")
+}
+
+model HistoricoStatus {
+  id          String    @id @default(uuid()) @db.Uuid
+  itemPoId    String    @map("item_po_id") @db.Uuid
+  /// Nulo no registro de criação (importação ou cadastro)
+  statusDe    StatusPo? @map("status_de")
+  statusPara  StatusPo  @map("status_para")
+  possuiMulta Boolean   @default(false) @map("possui_multa")
+  usuarioId   String?   @map("usuario_id") @db.Uuid
+  motivo      String?
+  criadoEm    DateTime  @default(now()) @map("criado_em") @db.Timestamptz(3)
+
+  itemPo  ItemPo   @relation(fields: [itemPoId], references: [id], onDelete: Cascade)
+  usuario Usuario? @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+
+  @@index([itemPoId, criadoEm])
+  @@map("historico_status")
+}
+
+/// Nome, e-mail e segredo MFA são gravados criptografados (AES-256-GCM) pela API na Fase 2.
+model Usuario {
+  id                 String        @id @default(uuid()) @db.Uuid
+  nomeCifrado        Bytes         @map("nome_cifrado")
+  emailCifrado       Bytes         @map("email_cifrado")
+  /// HMAC do e-mail normalizado, para busca e unicidade
+  emailHash          String        @unique @map("email_hash") @db.VarChar(128)
+  senhaHash          String        @map("senha_hash")
+  perfil             PerfilUsuario
+  mfaSecretCifrado   Bytes?        @map("mfa_secret_cifrado")
+  mfaAtivo           Boolean       @default(false) @map("mfa_ativo")
+  /// Último passo TOTP aceito, para bloquear reuso do mesmo código
+  mfaUltimoPasso     BigInt?       @map("mfa_ultimo_passo")
+  tentativasFalhas   Int           @default(0) @map("tentativas_falhas")
+  bloqueadoAte       DateTime?     @map("bloqueado_ate") @db.Timestamptz(3)
+  aceiteTermosVersao String?       @map("aceite_termos_versao") @db.VarChar(20)
+  aceiteTermosEm     DateTime?     @map("aceite_termos_em") @db.Timestamptz(3)
+  ativo              Boolean       @default(true)
+  criadoEm           DateTime      @default(now()) @map("criado_em") @db.Timestamptz(3)
+  atualizadoEm       DateTime      @updatedAt @map("atualizado_em") @db.Timestamptz(3)
+
+  codigosRecuperacao CodigoRecuperacaoMfa[]
+  sessoes            Sessao[]
+  historicoStatus    HistoricoStatus[]
+  logs               LogAuditoria[]
+
+  @@map("usuarios")
+}
+
+model CodigoRecuperacaoMfa {
+  id         String    @id @default(uuid()) @db.Uuid
+  usuarioId  String    @map("usuario_id") @db.Uuid
+  codigoHash String    @map("codigo_hash")
+  usadoEm    DateTime? @map("usado_em") @db.Timestamptz(3)
+  criadoEm   DateTime  @default(now()) @map("criado_em") @db.Timestamptz(3)
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
+  @@map("codigos_recuperacao_mfa")
+}
+
+model Sessao {
+  id               String    @id @default(uuid()) @db.Uuid
+  usuarioId        String    @map("usuario_id") @db.Uuid
+  refreshTokenHash String    @unique @map("refresh_token_hash") @db.VarChar(128)
+  expiraEm         DateTime  @map("expira_em") @db.Timestamptz(3)
+  revogadoEm       DateTime? @map("revogado_em") @db.Timestamptz(3)
+  ultimoUsoEm      DateTime? @map("ultimo_uso_em") @db.Timestamptz(3)
+  ip               String?   @db.VarChar(45)
+  userAgent        String?   @map("user_agent") @db.VarChar(300)
+  criadoEm         DateTime  @default(now()) @map("criado_em") @db.Timestamptz(3)
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
+  @@map("sessoes")
+}
+
+model LogAuditoria {
+  id            BigInt   @id @default(autoincrement())
+  usuarioId     String?  @map("usuario_id") @db.Uuid
+  acao          String   @db.VarChar(60)
+  entidade      String?  @db.VarChar(60)
+  entidadeId    String?  @map("entidade_id") @db.VarChar(60)
+  ip            String?  @db.VarChar(45)
+  valoresAntes  Json?    @map("valores_antes")
+  valoresDepois Json?    @map("valores_depois")
+  criadoEm      DateTime @default(now()) @map("criado_em") @db.Timestamptz(3)
+
+  usuario Usuario? @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+
+  @@index([entidade, entidadeId])
+  @@index([criadoEm])
+  @@map("log_auditoria")
+}
