@@ -1,0 +1,20 @@
+{
+  "name": "controle-financeiro-ameta",
+  "private": true,
+  "workspaces": [
+    "api"
+  ],
+  "scripts": {
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose down",
+    "db:migrate": "npm -w api run db:migrate",
+    "db:status": "npm -w api run db:status",
+    "import:planilha": "npm -w api run import:planilha --",
+    "typecheck": "npm -w api run typecheck",
+    "test": "npm -w api test",
+    "db:studio": "npm -w api run db:studio"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
