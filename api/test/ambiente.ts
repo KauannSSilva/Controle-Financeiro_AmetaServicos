@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 
@@ -17,3 +18,8 @@ export function urlBancoTeste(): string {
 }
 
 process.env.DATABASE_URL = urlBancoTeste();
+
+// Chaves só para os testes, quando o .env ainda não tem as da API
+for (const nome of ['JWT_SEGREDO', 'CHAVE_CRIPTOGRAFIA', 'CHAVE_HMAC']) {
+  process.env[nome] ||= randomBytes(32).toString('base64');
+}
