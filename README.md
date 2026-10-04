@@ -6,6 +6,7 @@ Aplicação web que substitui a planilha de controle de NFS-e e P.Os da Ameta Se
 
 - **Fase 0 — Análise da planilha:** [docs/fase-0-analise.md](docs/fase-0-analise.md)
 - **Fase 1 — Banco de dados:** [docs/fase-1-banco-de-dados.md](docs/fase-1-banco-de-dados.md)
+- **Fase 2 — API, login com MFA e perfis:** [docs/fase-2-api.md](docs/fase-2-api.md)
 
 ## Rodar o banco no seu computador (grátis)
 
@@ -42,6 +43,34 @@ No Windows, use `copy .env.example .env` no passo 1.
 Para ver as tabelas, rode `npm run db:studio` e abra o endereço que aparecer, ou conecte um cliente como DBeaver ou pgAdmin em `localhost:5432` com o usuário e a senha do `.env`.
 
 Para desligar o banco: `npm run db:down` (os dados continuam salvos no volume do Docker).
+
+## API (Fase 2)
+
+Com o banco rodando (passos acima), no PowerShell, dentro da pasta do projeto:
+
+```powershell
+# 1. Atualiza dependências e banco
+npm install
+npm run db:migrate
+
+# 2. Gera as chaves da API no .env (só na primeira vez)
+npm run api:chaves
+
+# 3. Cria o primeiro ADMIN (pede o nome e a senha, que não aparece na tela)
+npm run seed:admin -- --email voce@ameta.com.br
+
+# 4. Sobe a API (deixe esta janela aberta; Ctrl+C para parar)
+npm run api
+```
+
+Abra `http://localhost:3000/api/v1/docs` no navegador para testar:
+
+1. **auth/login** → *Try it out* → troque e-mail e senha → *Execute*.
+2. **auth/mfa/configurar** → *Try it out* → *Execute*. Abra `http://localhost:3000/api/v1/auth/mfa/qrcode.png` em outra aba e escaneie com o Google Authenticator ou o Microsoft Authenticator.
+3. **auth/mfa/ativar** com o código de 6 dígitos do app. Guarde os 10 códigos de recuperação que aparecem.
+4. Pronto: as outras rotas funcionam (ex.: **contadores**, **inicio**, **itens**). Nos próximos acessos, o passo 2 é **auth/mfa/verificar** com o código do app.
+
+Não troque `CHAVE_CRIPTOGRAFIA` nem `CHAVE_HMAC` depois de criar usuários: os dados cifrados ficariam ilegíveis.
 
 ## Dados de clientes
 
