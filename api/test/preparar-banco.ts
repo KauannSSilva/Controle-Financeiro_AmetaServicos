@@ -12,5 +12,6 @@ export default function prepararBanco() {
     cwd: path.resolve(import.meta.dirname, '..'),
     env: { ...process.env, DATABASE_URL: url },
     stdio: 'pipe',
+    shell: process.platform === 'win32', // no Windows o npx é npx.cmd
   });
 }
