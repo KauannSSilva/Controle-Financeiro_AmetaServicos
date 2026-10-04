@@ -51,6 +51,7 @@ Com o banco rodando (passos acima), no PowerShell, dentro da pasta do projeto:
 ```powershell
 # 1. Atualiza dependências e banco
 npm install
+npm -w api run db:generate
 npm run db:migrate
 
 # 2. Gera as chaves da API no .env (só na primeira vez)
