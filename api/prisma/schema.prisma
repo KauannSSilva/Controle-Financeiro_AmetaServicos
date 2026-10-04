@@ -78,7 +78,7 @@ model ItemPo {
   atualizadoPorId String?   @map("atualizado_por") @db.Uuid
   excluidoEm      DateTime? @map("excluido_em") @db.Timestamptz(3)
 
-  ordemCompra OrdemCompra      @relation(fields: [ordemCompraId], references: [id], onDelete: Restrict)
+  ordemCompra OrdemCompra       @relation(fields: [ordemCompraId], references: [id], onDelete: Restrict)
   historico   HistoricoStatus[]
 
   @@index([status])
@@ -107,7 +107,7 @@ model HistoricoStatus {
   @@map("historico_status")
 }
 
-/// Nome, e-mail e segredo MFA são gravados criptografados (AES-256-GCM) pela API na Fase 2.
+/// Nome, e-mail e segredo MFA são gravados criptografados (AES-256-GCM) pela API (src/seguranca/cripto.ts).
 model Usuario {
   id                 String        @id @default(uuid()) @db.Uuid
   nomeCifrado        Bytes         @map("nome_cifrado")
@@ -125,6 +125,10 @@ model Usuario {
   aceiteTermosVersao String?       @map("aceite_termos_versao") @db.VarChar(20)
   aceiteTermosEm     DateTime?     @map("aceite_termos_em") @db.Timestamptz(3)
   ativo              Boolean       @default(true)
+  /// Senha criada pelo ADM: o usuário troca no primeiro acesso
+  deveTrocarSenha    Boolean       @default(true) @map("deve_trocar_senha")
+  /// Exclusão pelo ADM (soft delete): some das listas, histórico e auditoria continuam apontando para ele
+  excluidoEm         DateTime?     @map("excluido_em") @db.Timestamptz(3)
   criadoEm           DateTime      @default(now()) @map("criado_em") @db.Timestamptz(3)
   atualizadoEm       DateTime      @updatedAt @map("atualizado_em") @db.Timestamptz(3)
 

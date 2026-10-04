@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import {
-  buscarPo, contarPorStatus, editarItem, ErroRegra, excluirDefinitivo, inserirItem, listarItens,
+  buscarPo, contarPorStatus, editarItem, ErroConflito, ErroRegra, excluirDefinitivo, inserirItem, listarItens,
   moverStatus, removerItem, removerPo, restaurarItem,
 } from '../src/ordens/ordens.js';
 import { limparBanco } from './util.js';
@@ -72,7 +72,7 @@ describe('mover entre status', () => {
     expect(await sf()).toBe('NOVO');
     await moverStatus(prisma, item.id, 'EMITIR_NOTA');
     expect(await sf()).toBe('ENTREGUE');
-    await moverStatus(prisma, item.id, 'EMITIDA');
+    await moverStatus(prisma, item.id, 'EMITIDA', { numeroNfse: '38501', dataEmissao: new Date('2026-10-01') });
     expect(await sf()).toBe('FECHADO');
     await moverStatus(prisma, item.id, 'CANCELADO');
     expect(await sf()).toBe('NOVO');
@@ -141,7 +141,7 @@ describe('editar e consultar', () => {
     await novo('4533000003');
     await editarItem(prisma, a.id, { numeroNfse: '100', dataEmissao: new Date('2026-08-10') });
     await moverStatus(prisma, a.id, 'EMITIDA');
-    await editarItem(prisma, b.id, { numeroNfse: '200', dataEmissao: new Date('2026-09-15') });
+    await editarItem(prisma, b.id, { numeroNfse: '200', dataEmissao: new Date('2026-09-15'), percentualMulta: 88 });
     await moverStatus(prisma, b.id, 'EMITIDA', { possuiMulta: true });
 
     expect((await listarItens(prisma, { status: 'EMITIDA' })).total).toBe(2);
@@ -160,5 +160,38 @@ describe('editar e consultar', () => {
     await novo();
     await expect(listarItens(prisma, { numeroPo: "1' OR '1'='1" })).rejects.toBeInstanceOf(ErroRegra);
     expect((await listarItens(prisma, { numeroNfse: "1' OR '1'='1" })).total).toBe(0);
+  });
+});
+
+describe('regras da nota emitida (Fase 2)', () => {
+  it('Emitida exige número da NFS-e e data de emissão', async () => {
+    const item = await novo();
+    await expect(moverStatus(prisma, item.id, 'EMITIDA')).rejects.toThrow('número da NFS-e');
+    await expect(moverStatus(prisma, item.id, 'EMITIDA', { numeroNfse: '1' })).rejects.toThrow('data de emissão');
+    await expect(novo('4533000002', { status: 'EMITIDA' })).rejects.toThrow('número da NFS-e');
+    const ok = await moverStatus(prisma, item.id, 'EMITIDA', { numeroNfse: ' 38501 ', dataEmissao: new Date('2026-10-01') });
+    expect(ok).toMatchObject({ status: 'EMITIDA', numeroNfse: '38501' });
+  });
+
+  it('dados da nota só entram ao mover para Emitida', async () => {
+    const item = await novo();
+    await expect(moverStatus(prisma, item.id, 'EMITIR_NOTA', { numeroNfse: '1' })).rejects.toThrow('só são informados');
+  });
+
+  it('versão antiga é recusada (outra pessoa alterou antes)', async () => {
+    const item = await novo();
+    await editarItem(prisma, item.id, { projeto: 'Outro' });
+    await expect(moverStatus(prisma, item.id, 'EMITIR_NOTA', { versao: item.atualizadoEm })).rejects.toBeInstanceOf(ErroConflito);
+    await expect(editarItem(prisma, item.id, { projeto: 'X' }, {}, item.atualizadoEm)).rejects.toBeInstanceOf(ErroConflito);
+  });
+
+  it('duas mudanças ao mesmo tempo no mesmo item: uma passa, a outra é recusada', async () => {
+    const item = await novo();
+    const r = await Promise.allSettled([
+      moverStatus(prisma, item.id, 'EMITIR_NOTA', { versao: item.atualizadoEm }),
+      moverStatus(prisma, item.id, 'CANCELADO', { versao: item.atualizadoEm }),
+    ]);
+    expect(r.filter((x) => x.status === 'fulfilled')).toHaveLength(1);
+    expect(await prisma.historicoStatus.count({ where: { itemPoId: item.id } })).toBe(2);
   });
 });
