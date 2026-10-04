@@ -10,6 +10,9 @@
     "db:migrate": "npm -w api run db:migrate",
     "db:status": "npm -w api run db:status",
     "import:planilha": "npm -w api run import:planilha --",
+    "api:chaves": "npm -w api run chaves",
+    "seed:admin": "npm -w api run seed:admin --",
+    "api": "npm -w api run dev",
     "typecheck": "npm -w api run typecheck",
     "test": "npm -w api test",
     "db:studio": "npm -w api run db:studio"
