@@ -20,6 +20,11 @@ export function MoverStatus({ item, aoConcluir, aoCancelar }: { item: Item; aoCo
 
   const paraEmitida = para === 'EMITIDA';
   const mesmo = para === item.status && (!paraEmitida || multa === item.possuiMulta);
+  // Saindo de Emitida (menos para Cancelado), a API apaga NFS-e e data
+  const apagaNota = item.status === 'EMITIDA' && !!para && para !== 'EMITIDA' && para !== 'CANCELADO' && !!(item.numeroNfse || item.dataEmissao);
+  const avisoNota = apagaNota && (
+    <Alerta tipo="info">A NFS-e <b>{item.numeroNfse ?? '(sem número)'}</b>{item.dataEmissao && <> de {fmtData(item.dataEmissao)}</>} será apagada desta P.O. O número antigo fica guardado no histórico.</Alerta>
+  );
 
   function revisar(e: FormEvent) {
     e.preventDefault();
@@ -72,6 +77,7 @@ export function MoverStatus({ item, aoConcluir, aoCancelar }: { item: Item; aoCo
             {multa && <li>Recebe: <b>{percentual}%</b> do valor</li>}
           </ul>
         )}
+        {avisoNota}
         {motivo && <p className="text-sm text-slate-700">Motivo: {motivo}</p>}
         <div className="flex justify-end gap-2">
           <Botao variante="secundario" onClick={() => setConfirmando(false)}>Voltar</Botao>
@@ -106,6 +112,7 @@ export function MoverStatus({ item, aoConcluir, aoCancelar }: { item: Item; aoCo
           )}
         </div>
       )}
+      {avisoNota}
       <AreaTexto rotulo="Motivo (opcional)" value={motivo} onChange={(e) => setMotivo(e.target.value)} maxLength={500} />
       {erro && <Alerta>{erro}</Alerta>}
       <div className="flex justify-end gap-2">

@@ -51,6 +51,7 @@ O único ADMIN ativo não consegue tirar o próprio perfil de ADMIN, se bloquear
 `POST itens/{id}/mover` com `para` (o novo status) e, opcionalmente, `motivo`.
 
 - **Para Emitida** é obrigatório ter o **número da NFS-e** e a **data de emissão**: informe no próprio pedido (`numeroNfse`, `dataEmissao`) se o item ainda não tiver. Data no futuro é recusada.
+- **Saindo de Emitida** para qualquer status menos Cancelado, o número da NFS-e e a data de emissão são apagados (pedido da Ameta em 05/10/2026). O número antigo fica no motivo do histórico e na auditoria. Para Cancelado, a nota continua no item.
 - **Com multa:** `possuiMulta: true` e `percentualMulta` entre 0 e 100 (88 = recebe 88%).
 - **Ninguém mudou antes de você:** o site manda a `versao` (o `atualizadoEm` de quando a tela abriu). Se outra pessoa alterou a P.O nesse meio tempo, a API recusa com 409 e pede para recarregar. Duas mudanças no mesmo instante também não se atropelam (a linha fica travada durante a gravação).
 - Depois de gravar: a P.O muda de aba, contadores e tela inicial já refletem, o status financeiro segue a regra da planilha (Emitida = FECHADO, Emitir Nota = ENTREGUE, resto = NOVO) e o histórico guarda quem, quando, de qual para qual status e o motivo. Errou? Mova de volta; as duas mudanças ficam no histórico.
@@ -67,4 +68,4 @@ A especificação sugere "NestJS (ou Fastify)". Usei **Fastify**: o NestJS depen
 
 ## Testes
 
-`npm test` roda 105 testes num banco separado (`ameta_teste`): os 40 da Fase 1 (alguns ajustados à regra nova da nota emitida) e os novos de login, MFA, sessão, permissões de cada perfil, rotas sem login, validação, injeção SQL e o fluxo de mover uma P.O para Emitida.
+`npm test` roda 106 testes num banco separado (`ameta_teste`): os 40 da Fase 1 (alguns ajustados à regra nova da nota emitida) e os novos de login, MFA, sessão, permissões de cada perfil, rotas sem login, validação, injeção SQL e o fluxo de mover uma P.O para Emitida.

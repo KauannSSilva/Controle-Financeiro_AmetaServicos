@@ -178,6 +178,20 @@ describe('regras da nota emitida (Fase 2)', () => {
     await expect(moverStatus(prisma, item.id, 'EMITIR_NOTA', { numeroNfse: '1' })).rejects.toThrow('só são informados');
   });
 
+  it('sair de Emitida apaga NFS-e e data, menos para Cancelado', async () => {
+    const item = await novo();
+    const emitir = () => moverStatus(prisma, item.id, 'EMITIDA', { numeroNfse: '38501', dataEmissao: new Date('2026-10-01') });
+    await emitir();
+    const voltou = await moverStatus(prisma, item.id, 'EMITIR_NOTA', { motivo: 'Nota errada' });
+    expect(voltou).toMatchObject({ status: 'EMITIR_NOTA', numeroNfse: null, dataEmissao: null });
+    const ultimo = await prisma.historicoStatus.findFirst({ where: { itemPoId: item.id }, orderBy: { criadoEm: 'desc' } });
+    expect(ultimo?.motivo).toBe('Nota errada (NFS-e 38501 de 01/10/2026 apagada)');
+
+    await emitir();
+    const cancelado = await moverStatus(prisma, item.id, 'CANCELADO');
+    expect(cancelado).toMatchObject({ status: 'CANCELADO', numeroNfse: '38501' });
+  });
+
   it('versão antiga é recusada (outra pessoa alterou antes)', async () => {
     const item = await novo();
     await editarItem(prisma, item.id, { projeto: 'Outro' });

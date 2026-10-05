@@ -22,7 +22,7 @@ Os botões aparecem conforme o perfil: o VISUALIZADOR só consulta. A API confer
 
 - **Adicionar**: em qualquer aba. Se o número da P.O já existir, o item entra nela.
 - **Editar**: todos os campos menos o status.
-- **Mover para…**: escolha o status e, se quiser, o motivo. Para Emitida, o site pede o número da NFS-e e a data de emissão (sem data no futuro) e, se teve multa, o percentual a receber. Antes de gravar aparece um resumo "de → para" para confirmar.
+- **Mover para…**: escolha o status e, se quiser, o motivo. Para Emitida, o site pede o número da NFS-e e a data de emissão (sem data no futuro) e, se teve multa, o percentual a receber. Antes de gravar aparece um resumo "de → para" para confirmar. Saindo de Emitida para outro status (menos Cancelado), o resumo avisa que a NFS-e será apagada.
 - **Remover**: pede confirmação. O item sai das listas, e um ADMIN pode restaurar.
 - **Duas pessoas na mesma P.O**: se outra pessoa alterou a P.O depois que você abriu a tela, o site avisa e recarrega, em vez de gravar por cima.
 

@@ -192,6 +192,16 @@ export async function moverStatus(
     } else if (opcoes.numeroNfse != null || opcoes.dataEmissao != null || opcoes.percentualMulta != null) {
       throw new ErroRegra('Número da NFS-e, data e multa só são informados ao mover para Emitida');
     }
+    // Saiu de Emitida (sem ser para Cancelado): a nota deixa de valer, então NFS-e e data são apagadas.
+    // Os valores antigos ficam no motivo do histórico e na auditoria.
+    let motivo = opcoes.motivo ?? null;
+    if (antes.status === 'EMITIDA' && para !== 'EMITIDA' && para !== 'CANCELADO' && (antes.numeroNfse || antes.dataEmissao)) {
+      nota.numeroNfse = null;
+      nota.dataEmissao = null;
+      const data = antes.dataEmissao ? ` de ${antes.dataEmissao.toISOString().slice(0, 10).split('-').reverse().join('/')}` : '';
+      const aviso = `NFS-e ${antes.numeroNfse ?? '(sem número)'}${data} apagada`;
+      motivo = motivo ? `${motivo} (${aviso})` : aviso;
+    }
     const depois = await tx.itemPo.update({
       where: { id },
       data: { ...nota, status: para, possuiMulta, atualizadoPorId: ctx.usuarioId },
@@ -199,7 +209,7 @@ export async function moverStatus(
     await tx.historicoStatus.create({
       data: {
         itemPoId: id, statusDe: antes.status, statusPara: para, possuiMulta,
-        usuarioId: ctx.usuarioId, motivo: opcoes.motivo ?? null,
+        usuarioId: ctx.usuarioId, motivo,
       },
     });
     await auditar(
