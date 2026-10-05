@@ -71,6 +71,8 @@ Abra `http://localhost:3000/api/v1/docs` no navegador para testar:
 3. **auth/mfa/ativar** com o código de 6 dígitos do app. Guarde os 10 códigos de recuperação que aparecem.
 4. Pronto: as outras rotas funcionam (ex.: **contadores**, **inicio**, **itens**). Nos próximos acessos, o passo 2 é **auth/mfa/verificar** com o código do app.
 
+Se a senha do ADMIN não entrar, troque-a com `npm run seed:admin -- --email voce@ameta.com.br --redefinir-senha` (também tira o bloqueio por tentativas).
+
 Não troque `CHAVE_CRIPTOGRAFIA` nem `CHAVE_HMAC` depois de criar usuários: os dados cifrados ficariam ilegíveis.
 
 ## Dados de clientes

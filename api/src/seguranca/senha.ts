@@ -5,13 +5,19 @@ import { ErroRegra } from '../erros.js';
 // Parâmetros mínimos recomendados pela OWASP para Argon2id (19 MiB, 2 iterações)
 const OPCOES = { algorithm: Algorithm.Argon2id, memoryCost: 19456, timeCost: 2, parallelism: 1 };
 
+/**
+ * Acentos podem chegar em duas formas (ex.: "ã" pronto ou "a" + "~", comum em teclados ABNT2 e no terminal).
+ * Normalizar (NFC) faz a mesma senha digitada no terminal e no navegador dar o mesmo hash.
+ */
+const normalizar = (senha: string) => senha.normalize('NFC');
+
 export function hashSenha(senha: string): Promise<string> {
-  return hash(senha, OPCOES);
+  return hash(normalizar(senha), OPCOES);
 }
 
 export async function conferirSenha(hashGravado: string, senha: string): Promise<boolean> {
   try {
-    return await verify(hashGravado, senha);
+    return (await verify(hashGravado, normalizar(senha))) || (await verify(hashGravado, senha));
   } catch {
     return false;
   }
