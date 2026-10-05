@@ -17,6 +17,16 @@ const esquema = z.object({
   CHAVE_HMAC: chave32('CHAVE_HMAC'),
   /** Cookies só por HTTPS. Navegadores aceitam em http://localhost, então fica ligado também no local. */
   COOKIE_SEGURO: z.enum(['true', 'false']).default('true').transform((v) => v === 'true'),
+  /** Envio dos convites. O padrão é o Mailpit local (docker compose), que só mostra os e-mails em http://localhost:8025. */
+  SMTP_HOST: z.string().default('localhost'),
+  SMTP_PORTA: z.coerce.number().int().default(1025),
+  /** true = TLS direto (porta 465). Na porta 587 o TLS é negociado sozinho (STARTTLS). */
+  SMTP_SEGURO: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
+  SMTP_USUARIO: z.string().optional(),
+  SMTP_SENHA: z.string().optional(),
+  EMAIL_REMETENTE: z.string().default('Controle Financeiro Ameta <nao-responda@ameta.com.br>'),
+  /** Endereço do site usado no link do convite. Sem valor, usa ORIGEM_FRONT. */
+  URL_SITE: z.string().url().optional(),
 });
 
 export type Config = z.infer<typeof esquema>;
@@ -44,4 +54,6 @@ export const TEMPOS = {
   janelaFalhasMs: 15 * 60 * 1000,
   bloqueioBaseMs: 15 * 60 * 1000,
   bloqueioMaxMs: 24 * 60 * 60 * 1000,
+  /** Prazo para aceitar o convite enviado por e-mail */
+  conviteMs: 72 * 60 * 60 * 1000,
 };

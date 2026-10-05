@@ -2,6 +2,7 @@
 import { PerfilUsuario, PrismaClient } from '@prisma/client';
 import { lerConfig } from '../src/config.js';
 import { App, criarApp } from '../src/http/app.js';
+import { Email } from '../src/email/email.js';
 import { COOKIES, PREFIXO } from '../src/http/comum.js';
 import { Cripto } from '../src/seguranca/cripto.js';
 import { codigoMfaAtual } from '../src/seguranca/totp.js';
@@ -9,8 +10,39 @@ import { criarUsuario } from '../src/usuarios/usuarios.js';
 
 export const SENHA = 'notas da ameta em dia 2026';
 
+/** Caixa de entrada dos testes: os e-mails que a API "enviou" */
+export const caixaDeEntrada: Email[] = [];
+/** Quando true, o envio falha (simula o SMTP fora do ar) */
+export const smtp = { fora: false };
+
 export async function novaApp(prisma: PrismaClient) {
-  return criarApp({ prisma, config: lerConfig() });
+  return criarApp({
+    prisma, config: lerConfig(),
+    enviarEmail: async (m) => {
+      if (smtp.fora) throw new Error('SMTP fora do ar');
+      caixaDeEntrada.push(m);
+    },
+  });
+}
+
+/** Último e-mail recebido por este endereço */
+export function ultimoEmail(para: string) {
+  const m = caixaDeEntrada.filter((e) => e.para === para).at(-1);
+  if (!m) throw new Error(`nenhum e-mail para ${para}`);
+  return m;
+}
+
+/** Token do link "Aceitar convite" do último convite deste endereço */
+export function tokenConvite(para: string) {
+  const t = ultimoEmail(para).texto.match(/\/convite#([A-Za-z0-9_-]+)/)?.[1];
+  if (!t) throw new Error('convite sem link');
+  return t;
+}
+
+/** Simula a pessoa clicando no link do e-mail */
+export async function aceitarConvite(app: App, para: string) {
+  const r = await new Navegador(app).req('POST', 'auth/convite/aceitar', { token: tokenConvite(para) });
+  if (r.statusCode !== 200) throw new Error(`aceitar convite ${r.statusCode} ${r.body}`);
 }
 
 export function cripto() {

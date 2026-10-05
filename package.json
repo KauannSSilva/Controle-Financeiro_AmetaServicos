@@ -6,7 +6,7 @@
     "web"
   ],
   "scripts": {
-    "db:up": "docker compose up -d postgres",
+    "db:up": "docker compose up -d postgres mailpit",
     "db:down": "docker compose down",
     "db:migrate": "npm -w api run db:migrate",
     "db:status": "npm -w api run db:status",

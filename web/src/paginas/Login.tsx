@@ -1,4 +1,5 @@
 import { FormEvent, useState } from 'react';
+import { useLocation } from 'react-router';
 import logo from '../../../assets/logo/logo.png';
 import { api, ErroApi } from '../api';
 import { useAuth } from '../auth';
@@ -18,7 +19,9 @@ export function Login() {
   const [etapa, setEtapa] = useState<Etapa>({ tipo: 'senha' });
   const [erro, setErro] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
-  const [email, setEmail] = useState('');
+  const local = useLocation();
+  // Vindo da página do convite, o e-mail já aparece preenchido
+  const [email, setEmail] = useState<string>((local.state as { email?: string } | null)?.email ?? '');
   const [senha, setSenha] = useState('');
   const [codigo, setCodigo] = useState('');
   const [usarRecuperacao, setUsarRecuperacao] = useState(false);

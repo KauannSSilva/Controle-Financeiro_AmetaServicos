@@ -16,6 +16,7 @@ import {
 } from 'fastify-type-provider-zod';
 import { Autenticacao } from '../auth/auth.js';
 import { Config } from '../config.js';
+import { criarEnvioSmtp, EnviarEmail } from '../email/email.js';
 import { ErroConflito, ErroHttp, ErroNaoEncontrado, ErroRegra } from '../erros.js';
 import { Cripto, iguaisSeguro } from '../seguranca/cripto.js';
 import { CABECALHO_CSRF, COOKIES, PREFIXO } from './comum.js';
@@ -28,9 +29,11 @@ export interface Dependencias {
   prisma: PrismaClient;
   config: Config;
   logger?: boolean | object;
+  /** Os testes trocam o SMTP por uma caixa de entrada em memória */
+  enviarEmail?: EnviarEmail;
 }
 
-export async function criarApp({ prisma, config, logger = false }: Dependencias) {
+export async function criarApp({ prisma, config, logger = false, enviarEmail }: Dependencias) {
   const producao = config.NODE_ENV === 'production';
   const app = Fastify({
     logger: logger === true
@@ -183,7 +186,7 @@ export async function criarApp({ prisma, config, logger = false }: Dependencias)
   // ---------- Rotas ----------
   app.get('/api/v1/saude', { config: { acesso: 'publico' }, schema: { hide: true } }, async () => ({ status: 'ok' }));
 
-  const ctx = { prisma, cripto, auth, config };
+  const ctx = { prisma, cripto, auth, config, enviarEmail: enviarEmail ?? criarEnvioSmtp(config) };
   await app.register(async (r) => rotasAuth(r, ctx), { prefix: `${PREFIXO}/auth` });
   await app.register(async (r) => rotasOrdens(r, ctx), { prefix: PREFIXO });
   await app.register(async (r) => rotasUsuarios(r, ctx), { prefix: `${PREFIXO}/usuarios` });

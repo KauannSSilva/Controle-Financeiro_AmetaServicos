@@ -3,7 +3,7 @@ import { ZodTypeProvider } from 'fastify-type-provider-zod';
 import QRCode from 'qrcode';
 import { z } from 'zod';
 import { tokenAleatorio } from '../../seguranca/cripto.js';
-import { usuarioPublico } from '../../usuarios/usuarios.js';
+import { aceitarConvite, usuarioPublico } from '../../usuarios/usuarios.js';
 import {
   ContextoRotas, COOKIES, gravarCookiesPreMfa, gravarCookiesSessao, limparCookies, origem,
 } from '../comum.js';
@@ -12,8 +12,17 @@ const tags = ['Login e sessão'];
 // Limite extra nas rotas de login e MFA, além do bloqueio por usuário
 const limiteLogin = { max: 20, timeWindow: '1 minute' };
 
-export async function rotasAuth(app: FastifyInstance, { auth, cripto, config }: ContextoRotas) {
+export async function rotasAuth(app: FastifyInstance, { auth, cripto, config, prisma }: ContextoRotas) {
   const r = app.withTypeProvider<ZodTypeProvider>();
+
+  r.post('/convite/aceitar', {
+    config: { acesso: 'publico', rateLimit: limiteLogin },
+    schema: {
+      tags, summary: 'Aceitar o convite recebido por e-mail',
+      description: 'O token vem do link do e-mail. Depois disso a pessoa entra em auth/login com a senha provisória.',
+      body: z.object({ token: z.string().trim().min(20).max(100) }),
+    },
+  }, async (req) => ({ email: await aceitarConvite(prisma, cripto, req.body.token, req.ip) }));
 
   r.post('/login', {
     config: { acesso: 'publico', rateLimit: limiteLogin },

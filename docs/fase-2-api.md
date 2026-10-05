@@ -8,6 +8,7 @@ API REST em `/api/v1` que o site (Fase 3) vai usar. Login com senha e código do
 2. **Primeiro acesso:** a API gera o QR Code (`POST auth/mfa/configurar` ou a imagem em `GET auth/mfa/qrcode.png`), você escaneia no Google Authenticator ou Microsoft Authenticator e confirma com o código de 6 dígitos (`POST auth/mfa/ativar`). Nessa hora aparecem **10 códigos de recuperação**, uma única vez, para usar se perder o celular.
 3. **Nos acessos seguintes:** o código de 6 dígitos do app (`POST auth/mfa/verificar`), ou um código de recuperação.
 4. Usuário criado pelo ADMIN recebe uma senha provisória e precisa trocá-la (`POST auth/trocar-senha`) antes de usar o sistema.
+5. Antes disso, a pessoa precisa aceitar o **convite por e-mail**. Ao criar o usuário, a API envia um e-mail com o nome no site, o e-mail de acesso, a senha provisória e o botão "Aceitar convite" (vale 72 horas e só uma vez). Sem aceitar, o login responde "Aceite o convite enviado para o seu e-mail antes de entrar". Isso garante que o e-mail cadastrado existe e é da pessoa. O ADMIN pode reenviar o convite com uma senha provisória nova (`POST usuarios/{id}/reenviar-convite`); o link anterior deixa de valer. No banco fica só o hash do link, e o primeiro ADMIN (criado no terminal) não precisa de convite.
 
 Não existe cadastro público. O primeiro ADMIN é criado pelo comando `npm run seed:admin`; os outros usuários, pelo ADMIN.
 
@@ -68,4 +69,4 @@ A especificação sugere "NestJS (ou Fastify)". Usei **Fastify**: o NestJS depen
 
 ## Testes
 
-`npm test` roda 106 testes num banco separado (`ameta_teste`): os 40 da Fase 1 (alguns ajustados à regra nova da nota emitida) e os novos de login, MFA, sessão, permissões de cada perfil, rotas sem login, validação, injeção SQL e o fluxo de mover uma P.O para Emitida.
+`npm test` roda 113 testes num banco separado (`ameta_teste`): os 40 da Fase 1 (alguns ajustados à regra nova da nota emitida) e os novos de login, MFA, sessão, permissões de cada perfil, rotas sem login, validação, injeção SQL, o fluxo de mover uma P.O para Emitida e o convite por e-mail.

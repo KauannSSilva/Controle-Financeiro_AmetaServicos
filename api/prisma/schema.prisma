@@ -129,6 +129,11 @@ model Usuario {
   deveTrocarSenha    Boolean       @default(true) @map("deve_trocar_senha")
   /// Exclusão pelo ADM (soft delete): some das listas, histórico e auditoria continuam apontando para ele
   excluidoEm         DateTime?     @map("excluido_em") @db.Timestamptz(3)
+  /// Convite por e-mail: SHA-256 do token do link (o token em si só vai no e-mail)
+  conviteTokenHash   String?       @unique @map("convite_token_hash") @db.VarChar(64)
+  conviteExpiraEm    DateTime?     @map("convite_expira_em") @db.Timestamptz(3)
+  /// Nulo = convite ainda não aceito: a pessoa não consegue entrar
+  conviteAceitoEm    DateTime?     @map("convite_aceito_em") @db.Timestamptz(3)
   criadoEm           DateTime      @default(now()) @map("criado_em") @db.Timestamptz(3)
   atualizadoEm       DateTime      @updatedAt @map("atualizado_em") @db.Timestamptz(3)
 

@@ -10,6 +10,9 @@ export interface Usuario {
   mfaAtivo: boolean;
   bloqueadoAte: string | null;
   deveTrocarSenha: boolean;
+  /** false = ainda não aceitou o convite do e-mail (não consegue entrar) */
+  conviteAceito: boolean;
+  conviteExpiraEm: string | null;
   criadoEm: string;
 }
 

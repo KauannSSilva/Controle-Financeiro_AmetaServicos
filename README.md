@@ -97,6 +97,10 @@ Abra `http://localhost:5173` no navegador e entre com o seu e-mail, a senha e o 
 
 O que cada tela faz está em [docs/fase-3-telas.md](docs/fase-3-telas.md).
 
+### E-mails de convite
+
+Quem você cria em Usuários recebe um convite por e-mail. No seu computador, os e-mails não saem para a internet: o `npm run db:up` também liga o **Mailpit**, e você vê tudo o que a API enviou em `http://localhost:8025`. Para enviar de verdade (na Fase 5), troque as linhas `SMTP_` do `.env` pelo servidor de e-mail da empresa.
+
 ## Dados de clientes
 
 A planilha e os relatórios da importação ficam fora do Git (`data/`, `*.xlsx`, `*.csv` no `.gitignore`). O repositório é público: nunca adicione esses arquivos.

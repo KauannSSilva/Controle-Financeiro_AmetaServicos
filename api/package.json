@@ -30,6 +30,7 @@
     "fastify-type-provider-zod": "7.0.0",
     "jose": "6.2.12",
     "jszip": "3.10.2",
+    "nodemailer": "10.0.14",
     "otplib": "13.5.0",
     "qrcode": "1.5.4",
     "zod": "4.6.5"

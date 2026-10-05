@@ -7,7 +7,7 @@ import { Prisma, PrismaClient, Usuario } from '@prisma/client';
 import { jwtVerify, SignJWT } from 'jose';
 import { Config, TEMPOS } from '../config.js';
 import {
-  ErroHttp, ErroRegra, MSG_BLOQUEADO, MSG_LOGIN_INVALIDO, MSG_MFA_INVALIDO, MSG_SESSAO,
+  ErroHttp, ErroRegra, MSG_BLOQUEADO, MSG_CONVITE_PENDENTE, MSG_LOGIN_INVALIDO, MSG_MFA_INVALIDO, MSG_SESSAO,
 } from '../erros.js';
 import { Cripto, sha256, tokenAleatorio } from '../seguranca/cripto.js';
 import { conferirSenha, hashParaTempoConstante, hashSenha, validarPoliticaSenha } from '../seguranca/senha.js';
@@ -101,6 +101,11 @@ export class Autenticacao {
       throw new ErroHttp(401, MSG_LOGIN_INVALIDO);
     }
 
+    if (!u.conviteAceitoEm) {
+      // Senha certa, mas o e-mail ainda não foi confirmado pelo link do convite
+      await this.auditar(u.id, 'LOGIN_FALHOU', origem, { etapa: 'senha', motivo: 'convite_pendente' });
+      throw new ErroHttp(403, MSG_CONVITE_PENDENTE);
+    }
     await this.auditar(u.id, 'LOGIN_SENHA_OK', origem);
     const tokenPreMfa = await new SignJWT({ etp: 'mfa' })
       .setProtectedHeader({ alg: ALG, typ: 'JWT' })

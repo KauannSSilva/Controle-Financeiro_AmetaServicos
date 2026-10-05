@@ -3,6 +3,7 @@ import { PerfilUsuario, PrismaClient } from '@prisma/client';
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { Autenticacao, SessaoCriada, UsuarioLogado } from '../auth/auth.js';
 import { Config, TEMPOS } from '../config.js';
+import { EnviarEmail } from '../email/email.js';
 import { Cripto } from '../seguranca/cripto.js';
 
 export const PREFIXO = '/api/v1';
@@ -46,6 +47,7 @@ export interface ContextoRotas {
   cripto: Cripto;
   auth: Autenticacao;
   config: Config;
+  enviarEmail: EnviarEmail;
 }
 
 /** IP e navegador de quem fez a requisição, para auditoria. */

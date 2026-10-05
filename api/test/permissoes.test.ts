@@ -22,7 +22,7 @@ afterAll(() => prisma.$disconnect());
 describe('rotas sem login', () => {
   it('toda rota, menos login e health check, responde 401 sem token', async () => {
     const publicas = app.inventarioRotas.filter((r) => r.acesso === 'publico').map((r) => `${r.metodo} ${r.url}`);
-    expect(publicas.sort()).toEqual(['GET /api/v1/saude', 'POST /api/v1/auth/login']);
+    expect(publicas.sort()).toEqual(['GET /api/v1/saude', 'POST /api/v1/auth/convite/aceitar', 'POST /api/v1/auth/login']);
     const protegidas = app.inventarioRotas.filter((r) => r.acesso !== 'publico');
     expect(protegidas.length).toBeGreaterThan(25);
     const id = '00000000-0000-4000-8000-000000000000';
@@ -68,6 +68,7 @@ describe('matriz de permissões (seção 5.2)', () => {
   let itemId: string;
   let removidoId: string;
   let alvoId: string;
+  let pendenteId: string;
 
   beforeEach(async () => {
     for (const p of ['ADMIN', 'OPERADOR', 'VISUALIZADOR'] as const) navs[p] = (await usuarioLogado(app, prisma, p)).nav;
@@ -78,6 +79,7 @@ describe('matriz de permissões (seção 5.2)', () => {
     removidoId = (await inserirItem(prisma, { numeroPo: '4533000002', item: '10' })).id;
     await removerItem(prisma, removidoId);
     alvoId = (await criarUsuario(prisma, cripto(), { nome: 'Alvo', email: 'alvo@ameta.com.br', perfil: 'VISUALIZADOR', senha: SENHA })).id;
+    pendenteId = (await criarUsuario(prisma, cripto(), { nome: 'Pendente', email: 'pendente@ameta.com.br', perfil: 'OPERADOR', senha: SENHA }, {}, { exigirConvite: true })).id;
   }
 
   const S = true, N = false;
@@ -103,6 +105,7 @@ describe('matriz de permissões (seção 5.2)', () => {
     ['resetar MFA', S, N, N, () => ['POST', `usuarios/${alvoId}/resetar-mfa`]],
     ['desbloquear usuário', S, N, N, () => ['POST', `usuarios/${alvoId}/desbloquear`]],
     ['senha provisória', S, N, N, () => ['POST', `usuarios/${alvoId}/senha-provisoria`, { senhaProvisoria: 'provisoria da ameta 02' }]],
+    ['reenviar convite', S, N, N, () => ['POST', `usuarios/${pendenteId}/reenviar-convite`, { senhaProvisoria: 'provisoria da ameta 03' }]],
     ['ver auditoria', S, N, N, () => ['GET', 'auditoria']],
   ];
 
@@ -122,7 +125,7 @@ describe('matriz de permissões (seção 5.2)', () => {
 
   async function limparDados() {
     await prisma.$executeRawUnsafe('TRUNCATE historico_status, itens_po, ordens_compra CASCADE');
-    await prisma.usuario.deleteMany({ where: { emailHash: { in: ['alvo@ameta.com.br', 'novo@ameta.com.br'].map((e) => cripto().hashEmail(e)) } } });
+    await prisma.usuario.deleteMany({ where: { emailHash: { in: ['alvo@ameta.com.br', 'novo@ameta.com.br', 'pendente@ameta.com.br'].map((e) => cripto().hashEmail(e)) } } });
   }
 });
 
@@ -158,7 +161,7 @@ describe('regras de ADMIN', () => {
     await admin.req('PATCH', `usuarios/${criado.json().id}`, { nome: 'Carla S. Souza', perfil: 'VISUALIZADOR' });
     const log = (await admin.req('GET', 'auditoria?porPagina=200')).json();
     const acoes = log.registros.map((r: { acao: string }) => r.acao);
-    expect(acoes).toEqual(expect.arrayContaining(['USUARIO_CRIADO', 'USUARIO_EDITADO', 'LOGIN_SUCESSO', 'MFA_ATIVADO']));
+    expect(acoes).toEqual(expect.arrayContaining(['USUARIO_CRIADO', 'CONVITE_ENVIADO', 'USUARIO_EDITADO', 'LOGIN_SUCESSO', 'MFA_ATIVADO']));
     const editado = log.registros.find((r: { acao: string }) => r.acao === 'USUARIO_EDITADO');
     expect(editado).toMatchObject({ usuarioId: adm.id, usuarioNome: 'Pessoa ADMIN', valoresDepois: { perfil: 'VISUALIZADOR', nome: '(alterado)' } });
     const texto = JSON.stringify(await prisma.logAuditoria.findMany({ select: { valoresAntes: true, valoresDepois: true } }));

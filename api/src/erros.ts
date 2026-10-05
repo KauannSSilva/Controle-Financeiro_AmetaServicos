@@ -20,3 +20,4 @@ export const MSG_LOGIN_INVALIDO = 'E-mail ou senha inválidos';
 export const MSG_MFA_INVALIDO = 'Código inválido ou expirado';
 export const MSG_BLOQUEADO = 'Muitas tentativas. Aguarde alguns minutos e tente de novo.';
 export const MSG_SESSAO = 'Sessão expirada. Entre de novo.';
+export const MSG_CONVITE_PENDENTE = 'Aceite o convite enviado para o seu e-mail antes de entrar.';

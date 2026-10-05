@@ -3,9 +3,11 @@
  * Nome e e-mail ficam cifrados; o e-mail também vira um HMAC para busca e unicidade.
  */
 import { PerfilUsuario, Prisma, PrismaClient, Usuario } from '@prisma/client';
+import { TEMPOS } from '../config.js';
+import { emailConvite, EnviarEmail } from '../email/email.js';
 import { ErroNaoEncontrado, ErroRegra } from '../erros.js';
 import { Contexto } from '../ordens/ordens.js';
-import { Cripto, normalizarEmail } from '../seguranca/cripto.js';
+import { Cripto, normalizarEmail, sha256, tokenAleatorio } from '../seguranca/cripto.js';
 import { hashSenha, validarPoliticaSenha } from '../seguranca/senha.js';
 
 export interface UsuarioPublico {
@@ -17,6 +19,9 @@ export interface UsuarioPublico {
   mfaAtivo: boolean;
   bloqueadoAte: Date | null;
   deveTrocarSenha: boolean;
+  /** false = ainda não aceitou o convite enviado por e-mail (não consegue entrar) */
+  conviteAceito: boolean;
+  conviteExpiraEm: Date | null;
   criadoEm: Date;
 }
 
@@ -31,6 +36,8 @@ export function usuarioPublico(u: Usuario, cripto: Cripto): UsuarioPublico {
     mfaAtivo: u.mfaAtivo,
     bloqueadoAte: u.bloqueadoAte && u.bloqueadoAte > new Date() ? u.bloqueadoAte : null,
     deveTrocarSenha: u.deveTrocarSenha,
+    conviteAceito: u.conviteAceitoEm !== null,
+    conviteExpiraEm: u.conviteAceitoEm ? null : u.conviteExpiraEm,
     criadoEm: u.criadoEm,
   };
 }
@@ -74,7 +81,7 @@ export interface NovoUsuario {
 
 export async function criarUsuario(
   prisma: PrismaClient, cripto: Cripto, dados: NovoUsuario, ctx: Contexto = {},
-  opcoes: { deveTrocarSenha?: boolean } = {},
+  opcoes: { deveTrocarSenha?: boolean; exigirConvite?: boolean } = {},
 ) {
   const email = normalizarEmail(dados.email);
   validarPoliticaSenha(dados.senha, { email, nome: dados.nome });
@@ -90,6 +97,8 @@ export async function criarUsuario(
         senhaHash,
         perfil: dados.perfil,
         deveTrocarSenha: opcoes.deveTrocarSenha ?? true,
+        // Sem convite (ex.: o primeiro ADMIN, criado no terminal) a conta já nasce aceita
+        conviteAceitoEm: opcoes.exigirConvite ? null : new Date(),
       },
     });
     await auditar(tx, ctx, 'USUARIO_CRIADO', u.id, undefined, { perfil: u.perfil });
@@ -181,3 +190,56 @@ export async function definirSenhaProvisoria(prisma: PrismaClient, cripto: Cript
 }
 
 export { revogarSessoes };
+
+// ---------- Convite por e-mail ----------
+
+/**
+ * Gera um link novo (o anterior deixa de valer) e manda o convite com o nome, o e-mail e a senha provisória.
+ * Devolve false se o e-mail não saiu; o usuário continua criado e o ADMIN pode reenviar.
+ */
+export async function enviarConvite(
+  prisma: PrismaClient, cripto: Cripto, enviar: EnviarEmail, urlSite: string,
+  id: string, senhaProvisoria: string, ctx: Contexto = {},
+): Promise<boolean> {
+  const u = await buscar(prisma, id);
+  if (u.conviteAceitoEm) throw new ErroRegra('Este usuário já aceitou o convite');
+  const token = tokenAleatorio(32);
+  const expiraEm = new Date(Date.now() + TEMPOS.conviteMs);
+  await prisma.usuario.update({ where: { id }, data: { conviteTokenHash: sha256(token), conviteExpiraEm: expiraEm } });
+  const nome = cripto.decifrar(u.nomeCifrado);
+  const email = cripto.decifrar(u.emailCifrado);
+  // O token vai depois do # para não aparecer em logs de servidor nem no Referer
+  const link = `${urlSite.replace(/\/+$/, '')}/convite#${token}`;
+  let enviado = true;
+  try {
+    await enviar({ para: email, ...emailConvite({ nome, email, senhaProvisoria, link, expiraEm }) });
+  } catch {
+    enviado = false;
+  }
+  await prisma.$transaction((tx) => auditar(tx, ctx, enviado ? 'CONVITE_ENVIADO' : 'CONVITE_NAO_ENVIADO', id, undefined, { expiraEm }));
+  return enviado;
+}
+
+/** Reenvio pelo ADMIN: nova senha provisória e novo link (o convite anterior para de valer). */
+export async function reenviarConvite(
+  prisma: PrismaClient, cripto: Cripto, enviar: EnviarEmail, urlSite: string,
+  id: string, senhaProvisoria: string, ctx: Contexto = {},
+) {
+  const u = await buscar(prisma, id);
+  if (u.conviteAceitoEm) throw new ErroRegra('Este usuário já aceitou o convite');
+  await definirSenhaProvisoria(prisma, cripto, id, senhaProvisoria, ctx);
+  return enviarConvite(prisma, cripto, enviar, urlSite, id, senhaProvisoria, ctx);
+}
+
+/** A pessoa clicou no link do e-mail: confirma que o e-mail é dela e libera o login. Devolve o e-mail. */
+export async function aceitarConvite(prisma: PrismaClient, cripto: Cripto, token: string, ip?: string | null) {
+  const u = await prisma.usuario.findUnique({ where: { conviteTokenHash: sha256(token) } });
+  if (!u || u.excluidoEm || u.conviteAceitoEm || !u.conviteExpiraEm || u.conviteExpiraEm < new Date()) {
+    throw new ErroRegra('Convite expirado ou já usado. Peça ao administrador para reenviar.');
+  }
+  await prisma.$transaction(async (tx) => {
+    await tx.usuario.update({ where: { id: u.id }, data: { conviteAceitoEm: new Date(), conviteTokenHash: null, conviteExpiraEm: null } });
+    await auditar(tx, { usuarioId: u.id, ip }, 'CONVITE_ACEITO', u.id);
+  });
+  return cripto.decifrar(u.emailCifrado);
+}

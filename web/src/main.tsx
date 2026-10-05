@@ -1,13 +1,14 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router';
 import { ErroApi } from './api';
 import { ProvedorAuth, useAuth } from './auth';
 import { Layout } from './componentes/Layout';
 import { Carregando, ProvedorAvisos } from './componentes/ui';
 import './index.css';
 import { Auditoria } from './paginas/Auditoria';
+import { Convite } from './paginas/Convite';
 import { DetalhePo } from './paginas/DetalhePo';
 import { Inicio } from './paginas/Inicio';
 import { ListaStatus } from './paginas/ListaStatus';
@@ -29,6 +30,8 @@ const qc = new QueryClient({
 
 function App() {
   const { usuario, carregando, pode } = useAuth();
+  // O link do e-mail de convite abre sem login
+  if (useLocation().pathname === '/convite') return <Convite />;
   if (carregando) return <Carregando />;
   if (!usuario) return <Login />;
   if (usuario.deveTrocarSenha) return <TrocarSenhaObrigatoria />;

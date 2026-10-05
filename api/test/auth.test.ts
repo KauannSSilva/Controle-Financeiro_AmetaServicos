@@ -5,7 +5,7 @@ import { App } from '../src/http/app.js';
 import { COOKIES } from '../src/http/comum.js';
 import { codigoMfaAtual } from '../src/seguranca/totp.js';
 import { criarUsuario } from '../src/usuarios/usuarios.js';
-import { cripto, Navegador, novaApp, SENHA, usuarioLogado } from './api-util.js';
+import { aceitarConvite, cripto, Navegador, novaApp, SENHA, usuarioLogado } from './api-util.js';
 import { limparBanco } from './util.js';
 
 const prisma = new PrismaClient();
@@ -236,6 +236,7 @@ describe('senha', () => {
     expect(criado.json()).toMatchObject({ nome: 'Bruno Lima', deveTrocarSenha: true, mfaAtivo: false });
     expect(criado.json()).not.toHaveProperty('senhaHash');
 
+    await aceitarConvite(app, 'bruno@ameta.com.br');
     const bruno = new Navegador(app);
     await bruno.entrar('bruno@ameta.com.br', 'provisoria da ameta 01');
     const bloqueado = await bruno.req('GET', 'itens');

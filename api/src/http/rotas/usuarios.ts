@@ -2,8 +2,8 @@ import { FastifyInstance } from 'fastify';
 import { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import {
-  criarUsuario, definirSenhaProvisoria, desbloquearUsuario, editarUsuario, excluirUsuario, listarUsuarios, obterUsuario,
-  resetarMfa, usuarioPublico,
+  criarUsuario, definirSenhaProvisoria, desbloquearUsuario, editarUsuario, enviarConvite, excluirUsuario, listarUsuarios,
+  obterUsuario, reenviarConvite, resetarMfa, usuarioPublico,
 } from '../../usuarios/usuarios.js';
 import { ContextoRotas, contexto, SO_ADMIN } from '../comum.js';
 
@@ -13,8 +13,9 @@ const perfil = z.enum(['ADMIN', 'OPERADOR', 'VISUALIZADOR']);
 const nome = z.string().trim().min(2, 'Informe o nome').max(120);
 const config = { acesso: SO_ADMIN };
 
-export async function rotasUsuarios(app: FastifyInstance, { prisma, cripto }: ContextoRotas) {
+export async function rotasUsuarios(app: FastifyInstance, { prisma, cripto, config: cfg, enviarEmail }: ContextoRotas) {
   const r = app.withTypeProvider<ZodTypeProvider>();
+  const urlSite = cfg.URL_SITE ?? cfg.ORIGEM_FRONT;
 
   r.get('/', { config, schema: { tags, summary: 'Listar usuários' } }, async () =>
     (await listarUsuarios(prisma)).map((u) => usuarioPublico(u, cripto)));
@@ -26,13 +27,17 @@ export async function rotasUsuarios(app: FastifyInstance, { prisma, cripto }: Co
     config,
     schema: {
       tags, summary: 'Criar usuário',
-      description: 'A senha é provisória: o usuário troca no primeiro acesso e cadastra o autenticador.',
+      description: 'Envia um convite por e-mail com o nome, o e-mail e a senha provisória. O usuário só entra depois de aceitar '
+        + 'o convite; no primeiro acesso troca a senha e cadastra o autenticador. Se o e-mail não sair, conviteEnviado = false.',
       body: z.object({ nome, email: z.email('E-mail inválido').max(254), perfil, senhaProvisoria: z.string().max(128) }),
     },
   }, async (req, reply) => {
     const { senhaProvisoria, ...dados } = req.body;
-    const u = await criarUsuario(prisma, cripto, { ...dados, senha: senhaProvisoria }, contexto(req));
-    return reply.code(201).send(usuarioPublico(u, cripto));
+    const u = await criarUsuario(prisma, cripto, { ...dados, senha: senhaProvisoria }, contexto(req), { exigirConvite: true });
+    const conviteEnviado = await enviarConvite(prisma, cripto, enviarEmail, urlSite, u.id, senhaProvisoria, contexto(req));
+    if (!conviteEnviado) req.log.warn({ usuario: u.id }, 'convite não enviado');
+    const atual = await obterUsuario(prisma, u.id);
+    return reply.code(201).send({ ...usuarioPublico(atual, cripto), conviteEnviado });
   });
 
   r.patch('/:id', {
@@ -72,5 +77,17 @@ export async function rotasUsuarios(app: FastifyInstance, { prisma, cripto }: Co
   }, async (req) => {
     await definirSenhaProvisoria(prisma, cripto, req.params.id, req.body.senhaProvisoria, contexto(req));
     return { ok: true };
+  });
+
+  r.post('/:id/reenviar-convite', {
+    config,
+    schema: {
+      tags, summary: 'Reenviar o convite com uma nova senha provisória',
+      description: 'Só para quem ainda não aceitou. O link e a senha do convite anterior deixam de valer.',
+      params: id, body: z.object({ senhaProvisoria: z.string().max(128) }),
+    },
+  }, async (req) => {
+    const conviteEnviado = await reenviarConvite(prisma, cripto, enviarEmail, urlSite, req.params.id, req.body.senhaProvisoria, contexto(req));
+    return { ok: true, conviteEnviado };
   });
 }
