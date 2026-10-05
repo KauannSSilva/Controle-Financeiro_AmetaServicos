@@ -75,6 +75,28 @@ Se a senha do ADMIN não entrar, troque-a com `npm run seed:admin -- --email voc
 
 Não troque `CHAVE_CRIPTOGRAFIA` nem `CHAVE_HMAC` depois de criar usuários: os dados cifrados ficariam ilegíveis.
 
+## Site (Fase 3)
+
+Precisa de **duas janelas** do PowerShell abertas na pasta do projeto: uma para a API e outra para o site.
+
+```powershell
+# Uma vez, depois de baixar a versão nova
+git pull
+npm install
+npm -w api run db:generate
+
+# Janela 1: banco e API (deixe aberta)
+npm run db:up
+npm run api
+
+# Janela 2: site (deixe aberta)
+npm run site
+```
+
+Abra `http://localhost:5173` no navegador e entre com o seu e-mail, a senha e o código do app. Para parar, use Ctrl+C em cada janela.
+
+O que cada tela faz está em [docs/fase-3-telas.md](docs/fase-3-telas.md).
+
 ## Dados de clientes
 
 A planilha e os relatórios da importação ficam fora do Git (`data/`, `*.xlsx`, `*.csv` no `.gitignore`). O repositório é público: nunca adicione esses arquivos.
