@@ -95,6 +95,7 @@ describe('MFA', () => {
     const ok = await nav.req('POST', 'auth/mfa/ativar', { codigo: await codigoMfaAtual(cfg.json().chave) });
     expect(ok.statusCode).toBe(200);
     expect(ok.json().codigosRecuperacao).toHaveLength(10);
+    expect(ok.json().usuario.mfaAtivo).toBe(true);
     expect(new Set(ok.json().codigosRecuperacao).size).toBe(10);
     expect(await prisma.codigoRecuperacaoMfa.count()).toBe(10);
     expect(JSON.stringify(await prisma.codigoRecuperacaoMfa.findMany())).not.toContain(ok.json().codigosRecuperacao[0]);

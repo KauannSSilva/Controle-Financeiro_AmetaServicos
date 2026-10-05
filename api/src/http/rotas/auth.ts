@@ -62,7 +62,7 @@ export async function rotasAuth(app: FastifyInstance, { auth, cripto, config }: 
     const { sessao, codigosRecuperacao } = await auth.ativarMfa(u, req.body.codigo, origem(req));
     gravarCookiesSessao(reply, config, sessao);
     reply.header('Cache-Control', 'no-store');
-    return { usuario: usuarioPublico(u, cripto), codigosRecuperacao };
+    return { usuario: usuarioPublico({ ...u, mfaAtivo: true }, cripto), codigosRecuperacao };
   });
 
   r.post('/mfa/verificar', {
