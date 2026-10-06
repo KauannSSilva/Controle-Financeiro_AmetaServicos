@@ -163,7 +163,15 @@ describe('regras de ADMIN', () => {
     const acoes = log.registros.map((r: { acao: string }) => r.acao);
     expect(acoes).toEqual(expect.arrayContaining(['USUARIO_CRIADO', 'CONVITE_ENVIADO', 'USUARIO_EDITADO', 'LOGIN_SUCESSO', 'MFA_ATIVADO']));
     const editado = log.registros.find((r: { acao: string }) => r.acao === 'USUARIO_EDITADO');
-    expect(editado).toMatchObject({ usuarioId: adm.id, usuarioNome: 'Pessoa ADMIN', valoresDepois: { perfil: 'VISUALIZADOR', nome: '(alterado)' } });
+    expect(editado).toMatchObject({ usuarioId: adm.id, usuarioNome: 'Pessoa ADMIN', alvo: 'Carla S. Souza', valoresDepois: { perfil: 'VISUALIZADOR', nome: '(alterado)' } });
+    // P.O aparece pelo número, também depois de excluída de vez
+    const item = (await admin.req('POST', 'itens', { numeroPo: '4533000077', item: '20' })).json();
+    await admin.req('DELETE', `itens/${item.id}`);
+    await admin.req('DELETE', `itens/${item.id}/definitivo`);
+    const doItem = (await admin.req('GET', `auditoria?entidadeId=${item.id}`)).json().registros;
+    expect(doItem.map((r: { acao: string; alvo: string }) => `${r.acao} ${r.alvo}`)).toEqual([
+      'ITEM_EXCLUIDO_DEFINITIVO P.O 4533000077 · item 20', 'ITEM_REMOVIDO P.O 4533000077 · item 20', 'ITEM_CRIADO P.O 4533000077 · item 20',
+    ]);
     const texto = JSON.stringify(await prisma.logAuditoria.findMany({ select: { valoresAntes: true, valoresDepois: true } }));
     expect(texto).not.toContain('Carla');
     expect(texto).not.toContain('carla@');

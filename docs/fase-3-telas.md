@@ -14,7 +14,7 @@ Site em `web/` (React, TypeScript, Vite e Tailwind) que usa a API da Fase 2. Par
 | Detalhe da P.O | Clique em uma linha. Mostra cada item com todos os campos, o status financeiro, o valor final com a multa e o histórico de status (quem, quando, de qual para qual e o motivo). |
 | Convite | Página aberta pelo botão "Aceitar convite" do e-mail. Depois de aceitar, leva ao login com o e-mail já preenchido. Link usado ou vencido mostra "Convite expirado ou já usado". |
 | Usuários (ADMIN) | Criar com senha provisória (a pessoa recebe o convite por e-mail e só entra depois de aceitar; a situação mostra "Convite pendente até…" ou "Convite expirado", com o botão Reenviar convite), editar nome e perfil, senha provisória, resetar o autenticador, destravar (tentativas erradas), bloquear e excluir. Na sua própria linha só aparece Editar, e o único ADMIN ativo não consegue tirar o próprio perfil de ADMIN. |
-| Auditoria (ADMIN) | Tudo o que foi feito, com filtro por ação e período e os valores de antes e depois. |
+| Auditoria (ADMIN) | Tudo o que foi feito, em frases simples (ex.: "Mudou P.O 4533312225 · item 10 de Aguardando Liberação para Emitida, NFS-e 55555 de 05/10/2026"), com filtro por tipo de ação e período. Em edições, "Ver mudanças" mostra só os campos alterados, com o antes e o depois. Ações feitas pelo terminal aparecem como "Sistema". |
 | Removidos (ADMIN) | Itens tirados das listas, com Restaurar e Excluir de vez. |
 
 ## Ações nas P.Os

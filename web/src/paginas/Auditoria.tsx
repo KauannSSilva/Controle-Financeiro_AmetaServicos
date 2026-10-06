@@ -3,34 +3,8 @@ import { FormEvent, Fragment, useState } from 'react';
 import { api } from '../api';
 import { Alerta, Botao, Campo, Carregando, Paginacao, Selecao } from '../componentes/ui';
 import { quando } from '../formato';
+import { ACOES, frase, mudancas } from '../auditoria';
 import { RegistroAuditoria } from '../tipos';
-
-const ACOES: Record<string, string> = {
-  LOGIN_SUCESSO: 'Entrou',
-  LOGIN_SENHA_OK: 'Senha correta (falta o código)',
-  LOGIN_FALHOU: 'Tentativa de login falhou',
-  LOGOUT: 'Saiu',
-  MFA_ATIVADO: 'Cadastrou o autenticador',
-  MFA_RECUPERACAO_USADA: 'Usou código de recuperação',
-  SENHA_ALTERADA: 'Trocou a senha',
-  USUARIO_BLOQUEADO_TENTATIVAS: 'Travado por tentativas erradas',
-  USUARIO_CRIADO: 'Usuário criado',
-  CONVITE_ENVIADO: 'Convite enviado por e-mail',
-  CONVITE_NAO_ENVIADO: 'Convite não enviado (erro no e-mail)',
-  CONVITE_ACEITO: 'Convite aceito',
-  USUARIO_EDITADO: 'Usuário editado',
-  USUARIO_EXCLUIDO: 'Usuário excluído',
-  USUARIO_DESBLOQUEADO: 'Usuário destravado',
-  MFA_RESETADO: 'Autenticador resetado',
-  SENHA_REDEFINIDA_ADMIN: 'Senha provisória definida',
-  SENHA_REDEFINIDA_CLI: 'Senha redefinida pelo comando',
-  ITEM_CRIADO: 'P.O adicionada',
-  ITEM_EDITADO: 'P.O editada',
-  STATUS_ALTERADO: 'Status alterado',
-  ITEM_REMOVIDO: 'P.O removida',
-  ITEM_RESTAURADO: 'P.O restaurada',
-  ITEM_EXCLUIDO_DEFINITIVO: 'P.O excluída de vez',
-};
 
 const POR_PAGINA = 50;
 
@@ -51,7 +25,7 @@ export function Auditoria() {
     <div className="space-y-4">
       <h1 className="text-xl font-semibold text-slate-900">Auditoria</h1>
       <form onSubmit={filtrar} className="grid gap-3 rounded-lg bg-white p-4 shadow-sm ring-1 ring-slate-200 sm:grid-cols-4">
-        <Selecao rotulo="Ação" value={filtro.acao} onChange={(e) => setFiltro({ ...filtro, acao: e.target.value })}>
+        <Selecao rotulo="Tipo de ação" value={filtro.acao} onChange={(e) => setFiltro({ ...filtro, acao: e.target.value })}>
           <option value="">Todas</option>
           {Object.entries(ACOES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </Selecao>
@@ -67,34 +41,45 @@ export function Auditoria() {
           <div className="relative overflow-x-auto rounded-lg bg-white shadow-sm ring-1 ring-slate-200">
             <table className="min-w-full divide-y divide-slate-200 text-sm">
               <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-                <tr><th className="px-3 py-2.5">Quando</th><th className="px-3 py-2.5">Quem</th><th className="px-3 py-2.5">Ação</th><th className="px-3 py-2.5">IP</th><th className="px-3 py-2.5"><span className="sr-only">Detalhes</span></th></tr>
+                <tr><th className="px-3 py-2.5">Quando</th><th className="px-3 py-2.5">Quem</th><th className="px-3 py-2.5">O que aconteceu</th><th className="px-3 py-2.5"><span className="sr-only">Detalhes</span></th></tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {consulta.data.registros.length === 0 && <tr><td colSpan={5} className="px-3 py-8 text-center text-slate-500">Nenhum registro.</td></tr>}
+                {consulta.data.registros.length === 0 && <tr><td colSpan={4} className="px-3 py-8 text-center text-slate-500">Nenhum registro.</td></tr>}
                 {consulta.data.registros.map((r) => {
-                  const temDetalhe = r.valoresAntes != null || r.valoresDepois != null;
+                  const lista = mudancas(r);
+                  const falhou = r.acao === 'LOGIN_FALHOU' || r.acao === 'CONVITE_NAO_ENVIADO' || r.acao === 'USUARIO_BLOQUEADO_TENTATIVAS';
                   return (
                     <Fragment key={r.id}>
                       <tr>
-                        <td className="whitespace-nowrap px-3 py-2 tabular-nums text-slate-600">{quando(r.criadoEm)}</td>
-                        <td className="px-3 py-2">{r.usuarioNome ?? <span className="text-slate-400">—</span>}</td>
-                        <td className="px-3 py-2">{ACOES[r.acao] ?? r.acao}</td>
-                        <td className="px-3 py-2 text-slate-500">{r.ip ?? '—'}</td>
-                        <td className="px-3 py-1.5 text-right">
-                          {temDetalhe && (
-                            <Botao variante="fantasma" className="px-2 py-1 text-xs" aria-expanded={aberto === r.id} onClick={() => setAberto(aberto === r.id ? null : r.id)}>
-                              {aberto === r.id ? 'Ocultar' : 'Detalhes'}
-                            </Botao>
-                          )}
+                        <td className="whitespace-nowrap px-3 py-2 align-top tabular-nums text-slate-600">{quando(r.criadoEm)}</td>
+                        <td className="px-3 py-2 align-top font-medium text-slate-900">{r.usuarioNome ?? <span className="font-normal text-slate-500">{r.acao === 'LOGIN_FALHOU' ? 'Desconhecido' : 'Sistema'}</span>}</td>
+                        <td className={`px-3 py-2 align-top ${falhou ? 'text-red-700' : ''}`}>{frase(r)}</td>
+                        <td className="px-3 py-1.5 text-right align-top">
+                          <Botao variante="fantasma" className="whitespace-nowrap px-2 py-1 text-xs" aria-expanded={aberto === r.id} onClick={() => setAberto(aberto === r.id ? null : r.id)}>
+                            {aberto === r.id ? 'Ocultar' : lista.length ? 'Ver mudanças' : 'Detalhes'}
+                          </Botao>
                         </td>
                       </tr>
                       {aberto === r.id && (
                         <tr className="bg-slate-50">
-                          <td colSpan={5} className="px-3 py-2">
-                            <div className="grid gap-3 md:grid-cols-2">
-                              <div><div className="text-xs font-semibold text-slate-500">Antes</div><pre className="overflow-x-auto whitespace-pre-wrap text-xs">{JSON.stringify(r.valoresAntes, null, 2)}</pre></div>
-                              <div><div className="text-xs font-semibold text-slate-500">Depois</div><pre className="overflow-x-auto whitespace-pre-wrap text-xs">{JSON.stringify(r.valoresDepois, null, 2)}</pre></div>
-                            </div>
+                          <td colSpan={4} className="px-3 py-3">
+                            {lista.length > 0 && (
+                              <table className="mb-2 text-sm">
+                                <thead className="text-left text-xs text-slate-500"><tr><th className="pr-6 font-semibold">Campo</th><th className="pr-6 font-semibold">Antes</th><th className="font-semibold">Depois</th></tr></thead>
+                                <tbody>
+                                  {lista.map((m) => (
+                                    <tr key={m.campo}>
+                                      <td className="pr-6 text-slate-600">{m.campo}</td>
+                                      <td className="pr-6 text-slate-500 line-through decoration-slate-300">{m.antes}</td>
+                                      <td className="font-medium text-slate-900">{m.depois}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            )}
+                            <p className="text-xs text-slate-500">
+                              {ACOES[r.acao] ?? r.acao} · {quando(r.criadoEm)}{r.ip ? ` · computador (IP) ${r.ip}` : ''}
+                            </p>
                           </td>
                         </tr>
                       )}

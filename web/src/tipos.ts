@@ -78,6 +78,8 @@ export interface RegistroAuditoria {
   id: string;
   usuarioId: string | null;
   usuarioNome: string | null;
+  /** Em quem a ação foi feita: "P.O 4533312225 · item 10" ou o nome do usuário */
+  alvo: string | null;
   acao: string;
   entidade: string | null;
   entidadeId: string | null;
