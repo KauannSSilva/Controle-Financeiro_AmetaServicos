@@ -128,6 +128,11 @@ export async function criarApp({ prisma, config, logger = false, enviarEmail }: 
   // Cada requisição tem o seu contexto de banco (perfil usado pelo RLS); começa sem perfil = nada liberado
   app.addHook('onRequest', (_req, _reply, done) => contextoRequisicao(done));
 
+  // Respostas da API nunca ficam no cache do navegador nem de proxies (dados de clientes)
+  app.addHook('onSend', async (_req, reply) => {
+    if (!reply.hasHeader('cache-control')) reply.header('Cache-Control', 'no-store');
+  });
+
   // ---------- Bloqueios gerais ----------
   app.addHook('onRequest', async (req, reply) => {
     // Sem truques para trocar o método HTTP (APIs alternativas)

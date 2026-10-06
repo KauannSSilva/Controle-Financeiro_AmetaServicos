@@ -7,6 +7,7 @@ Aplicação web que substitui a planilha de controle de NFS-e e P.Os da Ameta Se
 - **Fase 0 — Análise da planilha:** [docs/fase-0-analise.md](docs/fase-0-analise.md)
 - **Fase 1 — Banco de dados:** [docs/fase-1-banco-de-dados.md](docs/fase-1-banco-de-dados.md)
 - **Fase 2 — API, login com MFA e perfis:** [docs/fase-2-api.md](docs/fase-2-api.md)
+- **Fase 4 — Segurança (OWASP Top 10 / ASVS L2):** [docs/fase-4-seguranca.md](docs/fase-4-seguranca.md) · rotas: [docs/inventario-rotas.md](docs/inventario-rotas.md)
 
 ## Rodar o banco no seu computador (grátis)
 
@@ -100,6 +101,24 @@ O que cada tela faz está em [docs/fase-3-telas.md](docs/fase-3-telas.md).
 ### E-mails de convite
 
 Quem você cria em Usuários recebe um convite por e-mail. No seu computador, os e-mails não saem para a internet: o `npm run db:up` também liga o **Mailpit**, e você vê tudo o que a API enviou em `http://localhost:8025`. Para enviar de verdade (na Fase 5), troque as linhas `SMTP_` do `.env` pelo servidor de e-mail da empresa.
+
+## Tudo em contêineres (Fase 4)
+
+Com o `.env` pronto (`npm run api:chaves` já rodado), um comando sobe banco, Mailpit, migrações, API e site:
+
+```powershell
+npm run tudo
+```
+
+Abra `http://localhost:8080`. Para parar: `npm run db:down`. O modo com `npm run api` e `npm run site` continua funcionando (site em `http://localhost:5173`); não use os dois ao mesmo tempo.
+
+## Verificação de segurança
+
+```powershell
+npm run security:scan
+```
+
+Confere se o `.env` está fora do Git, procura segredos no histórico (gitleaks, precisa do Docker), roda o `npm audit` e confirma que o site gerado não tem nenhum valor do `.env`.
 
 ## Dados de clientes
 

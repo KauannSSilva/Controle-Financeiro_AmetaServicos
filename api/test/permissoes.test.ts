@@ -70,6 +70,7 @@ describe('rotas sem login', () => {
     expect(res.headers['content-security-policy']).toContain("frame-ancestors 'none'");
     expect(res.headers['strict-transport-security']).toContain('includeSubDomains');
     expect(res.headers['x-powered-by']).toBeUndefined();
+    expect(res.headers['cache-control']).toBe('no-store');
   });
 
   it('CORS só libera o endereço do front', async () => {
