@@ -16,6 +16,7 @@ export const ACOES: Record<string, string> = {
   CONVITE_ENVIADO: 'Convite enviado',
   CONVITE_NAO_ENVIADO: 'Convite não enviado',
   CONVITE_ACEITO: 'Convite aceito',
+  TERMOS_ACEITOS: 'Aceitou os termos',
   USUARIO_EDITADO: 'Editou usuário',
   USUARIO_EXCLUIDO: 'Excluiu usuário',
   USUARIO_DESBLOQUEADO: 'Destravou usuário',
@@ -57,6 +58,7 @@ export function frase(r: RegistroAuditoria): string {
     case 'CONVITE_ENVIADO': return `Enviou o convite por e-mail para ${alvo}`;
     case 'CONVITE_NAO_ENVIADO': return `Tentou enviar o convite para ${alvo}, mas o e-mail não saiu`;
     case 'CONVITE_ACEITO': return 'Aceitou o convite do e-mail';
+    case 'TERMOS_ACEITOS': return `Aceitou os Termos de Uso e a Política de Privacidade${d.versao ? ` (versão ${d.versao})` : ''}`;
     case 'USUARIO_EDITADO': {
       const partes: string[] = [];
       if (d.nome) partes.push('mudou o nome');

@@ -90,6 +90,11 @@ export function Login() {
             <Campo rotulo="Senha" type="password" autoComplete="current-password" value={senha} onChange={(e) => setSenha(e.target.value)} obrigatorio />
             <Botao type="submit" className="w-full" disabled={ocupado}>{ocupado ? 'Entrando…' : 'Entrar'}</Botao>
             <p className="text-center text-xs text-slate-500">Esqueceu a senha ou perdeu o celular? Fale com o administrador.</p>
+            <p className="text-center text-xs text-slate-500">
+              <a href="/termos" className="underline hover:text-marca-700">Termos de Uso</a>
+              {' · '}
+              <a href="/privacidade" className="underline hover:text-marca-700">Política de Privacidade</a>
+            </p>
           </form>
         )}
 

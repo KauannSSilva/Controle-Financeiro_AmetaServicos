@@ -25,6 +25,7 @@ import { rotasAuditoria } from './rotas/auditoria.js';
 import { rotasAuth } from './rotas/auth.js';
 import { rotasOrdens } from './rotas/ordens.js';
 import { rotasUsuarios } from './rotas/usuarios.js';
+import { VERSAO_TERMOS } from '../termos/termos.js';
 
 export interface Dependencias {
   prisma: PrismaClient;
@@ -159,6 +160,9 @@ export async function criarApp({ prisma, config, logger = false, enviarEmail }: 
     definirPerfil(logado.usuario.perfil, logado.usuario.id);
     if (logado.usuario.deveTrocarSenha) {
       return reply.code(403).send({ erro: 'Troque a sua senha provisória antes de continuar', codigo: 'TROCAR_SENHA' });
+    }
+    if (logado.usuario.termosVersaoAceita !== VERSAO_TERMOS) {
+      return reply.code(403).send({ erro: 'Aceite os Termos de Uso e a Política de Privacidade para continuar', codigo: 'ACEITAR_TERMOS' });
     }
     if (!acesso.includes(logado.usuario.perfil)) {
       return reply.code(403).send({ erro: 'Seu perfil não tem permissão para esta ação' });

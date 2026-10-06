@@ -78,6 +78,11 @@ export function Layout() {
       <main key={local.pathname} className="mx-auto max-w-[1400px] p-4 lg:p-6">
         <Outlet />
       </main>
+      <footer className="mx-auto max-w-[1400px] px-4 pb-6 text-xs text-slate-500 lg:px-6">
+        <a href="/termos" className="underline hover:text-marca-700">Termos de Uso</a>
+        {' · '}
+        <a href="/privacidade" className="underline hover:text-marca-700">Política de Privacidade</a>
+      </footer>
 
       <Modal titulo="Trocar senha" aberto={trocandoSenha} aoFechar={() => setTrocandoSenha(false)}>
         <FormSenha

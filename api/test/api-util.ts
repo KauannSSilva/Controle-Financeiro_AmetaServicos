@@ -88,6 +88,13 @@ export class Navegador {
     return res;
   }
 
+  /** Aceita a versão atual dos Termos de Uso e da Política de Privacidade */
+  async aceitarTermos() {
+    const { versao } = (await this.req('GET', 'auth/termos')).json();
+    const r = await this.req('POST', 'auth/termos/aceitar', { versao });
+    if (r.statusCode !== 200) throw new Error(`termos ${r.statusCode} ${r.body}`);
+  }
+
   /** Login completo: senha e MFA (cadastra o autenticador se for o primeiro acesso). */
   async entrar(email: string, senha = SENHA) {
     const login = await this.req('POST', 'auth/login', { email, senha });
@@ -117,5 +124,6 @@ export async function usuarioLogado(app: App, prisma: PrismaClient, perfil: Perf
   const u = await criarUsuario(prisma, cripto(), { nome, email, perfil, senha: SENHA }, {}, { deveTrocarSenha: false });
   const nav = new Navegador(app);
   await nav.entrar(email);
+  await nav.aceitarTermos();
   return { nav, usuario: u, email };
 }

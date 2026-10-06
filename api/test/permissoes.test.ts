@@ -22,7 +22,7 @@ afterAll(() => prisma.$disconnect());
 describe('rotas sem login', () => {
   it('toda rota, menos login e health check, responde 401 sem token', async () => {
     const publicas = app.inventarioRotas.filter((r) => r.acesso === 'publico').map((r) => `${r.metodo} ${r.url}`);
-    expect(publicas.sort()).toEqual(['GET /api/v1/saude', 'POST /api/v1/auth/convite/aceitar', 'POST /api/v1/auth/login']);
+    expect(publicas.sort()).toEqual(['GET /api/v1/auth/termos', 'GET /api/v1/saude', 'POST /api/v1/auth/convite/aceitar', 'POST /api/v1/auth/login']);
     const protegidas = app.inventarioRotas.filter((r) => r.acesso !== 'publico');
     expect(protegidas.length).toBeGreaterThan(25);
     const id = '00000000-0000-4000-8000-000000000000';

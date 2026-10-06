@@ -134,6 +134,9 @@ model Usuario {
   conviteExpiraEm    DateTime?     @map("convite_expira_em") @db.Timestamptz(3)
   /// Nulo = convite ainda não aceito: a pessoa não consegue entrar
   conviteAceitoEm    DateTime?     @map("convite_aceito_em") @db.Timestamptz(3)
+  /// Versão dos Termos de Uso e da Política de Privacidade aceita por último (nulo = nunca aceitou)
+  termosVersaoAceita String?       @map("termos_versao_aceita") @db.VarChar(20)
+  termosAceitosEm    DateTime?     @map("termos_aceitos_em") @db.Timestamptz(3)
   criadoEm           DateTime      @default(now()) @map("criado_em") @db.Timestamptz(3)
   atualizadoEm       DateTime      @updatedAt @map("atualizado_em") @db.Timestamptz(3)
 

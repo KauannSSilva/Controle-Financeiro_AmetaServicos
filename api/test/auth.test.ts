@@ -215,6 +215,7 @@ describe('sessão', () => {
     const acesso = cookies.find((c) => c.name === COOKIES.acesso)!;
     expect(acesso).toMatchObject({ httpOnly: true, sameSite: 'Strict', secure: true });
     expect(cookies.find((c) => c.name === COOKIES.csrf)).toMatchObject({ sameSite: 'Strict', secure: true });
+    await nav.aceitarTermos();
 
     nav.enviarCsrf = false;
     const semCsrf = await nav.req('POST', 'itens', { numeroPo: '4533000001' });
@@ -245,13 +246,25 @@ describe('senha', () => {
     expect((await bruno.req('POST', 'auth/trocar-senha', { senhaAtual: 'provisoria da ameta 01', novaSenha: 'curta' })).statusCode).toBe(422);
     expect((await bruno.req('POST', 'auth/trocar-senha', { senhaAtual: 'provisoria da ameta 01', novaSenha: 'senha123456789' })).statusCode).toBe(422);
     expect((await bruno.req('POST', 'auth/trocar-senha', { senhaAtual: 'provisoria da ameta 01', novaSenha: 'minha senha nova e longa' })).statusCode).toBe(200);
+    // Depois da senha, os Termos de Uso e a Política de Privacidade
+    const semTermos = await bruno.req('GET', 'itens');
+    expect(semTermos.statusCode).toBe(403);
+    expect(semTermos.json().codigo).toBe('ACEITAR_TERMOS');
+    expect((await bruno.req('GET', 'auth/eu')).json().termosPendentes).toBe(true);
+    await bruno.aceitarTermos();
     expect((await bruno.req('GET', 'itens')).statusCode).toBe(200);
+    expect((await bruno.req('GET', 'auth/eu')).json().termosPendentes).toBe(false);
   });
 
   it('política: mínimo 12 caracteres e sem senhas comuns', async () => {
-    for (const ruim of ['curta', '123456789012', 'password12345', 'aaaaaaaaaaaaaa', 'Ameta2026!!!!', 'ana@ameta.com.br2026']) {
+    // Inclui senhas da lista de vazamentos (100 mil mais usadas), com números e símbolos no fim
+    for (const ruim of ['curta', '123456789012', 'password12345', 'aaaaaaaaaaaaaa', 'Ameta2026!!!!', 'ana@ameta.com.br2026',
+      'Sunshine2024!', 'superman123456', 'QwertyUiop#2025', 'Star.Wars.1977']) {
       await expect(criarUsuario(prisma, cripto(), { nome: 'Ana', email: 'ana@ameta.com.br', perfil: 'OPERADOR', senha: ruim }))
         .rejects.toThrow();
     }
+    // Frases longas e incomuns passam
+    await expect(criarUsuario(prisma, cripto(), { nome: 'Ana', email: 'ana@ameta.com.br', perfil: 'OPERADOR', senha: 'cafe com leite na obra de sexta' }))
+      .resolves.toBeTruthy();
   });
 });

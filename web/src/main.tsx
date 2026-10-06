@@ -14,6 +14,7 @@ import { Inicio } from './paginas/Inicio';
 import { ListaStatus } from './paginas/ListaStatus';
 import { Login } from './paginas/Login';
 import { Removidos } from './paginas/Removidos';
+import { AceitarTermos, PaginaTermos } from './paginas/Termos';
 import { TrocarSenhaObrigatoria } from './paginas/TrocarSenhaObrigatoria';
 import { Usuarios } from './paginas/Usuarios';
 import { STATUS } from './tipos';
@@ -31,10 +32,15 @@ const qc = new QueryClient({
 function App() {
   const { usuario, carregando, pode } = useAuth();
   // O link do e-mail de convite abre sem login
-  if (useLocation().pathname === '/convite') return <Convite />;
+  const caminho = useLocation().pathname;
+  if (caminho === '/convite') return <Convite />;
+  // Termos e privacidade abrem com ou sem login
+  if (caminho === '/termos') return <PaginaTermos qual="termos" />;
+  if (caminho === '/privacidade') return <PaginaTermos qual="privacidade" />;
   if (carregando) return <Carregando />;
   if (!usuario) return <Login />;
   if (usuario.deveTrocarSenha) return <TrocarSenhaObrigatoria />;
+  if (usuario.termosPendentes) return <AceitarTermos />;
   return (
     <Routes>
       <Route element={<Layout />}>

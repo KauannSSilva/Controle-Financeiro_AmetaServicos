@@ -5,6 +5,7 @@
 import { PerfilUsuario, Prisma, PrismaClient, Usuario } from '@prisma/client';
 import { TEMPOS } from '../config.js';
 import { emailConvite, EnviarEmail } from '../email/email.js';
+import { VERSAO_TERMOS } from '../termos/termos.js';
 import { ErroNaoEncontrado, ErroRegra } from '../erros.js';
 import { Contexto } from '../ordens/ordens.js';
 import { Cripto, normalizarEmail, sha256, tokenAleatorio } from '../seguranca/cripto.js';
@@ -22,6 +23,8 @@ export interface UsuarioPublico {
   /** false = ainda não aceitou o convite enviado por e-mail (não consegue entrar) */
   conviteAceito: boolean;
   conviteExpiraEm: Date | null;
+  /** true = precisa aceitar a versão atual dos Termos de Uso e da Política de Privacidade */
+  termosPendentes: boolean;
   criadoEm: Date;
 }
 
@@ -38,6 +41,7 @@ export function usuarioPublico(u: Usuario, cripto: Cripto): UsuarioPublico {
     deveTrocarSenha: u.deveTrocarSenha,
     conviteAceito: u.conviteAceitoEm !== null,
     conviteExpiraEm: u.conviteAceitoEm ? null : u.conviteExpiraEm,
+    termosPendentes: u.termosVersaoAceita !== VERSAO_TERMOS,
     criadoEm: u.criadoEm,
   };
 }

@@ -3,9 +3,11 @@ import { ZodTypeProvider } from 'fastify-type-provider-zod';
 import QRCode from 'qrcode';
 import { z } from 'zod';
 import { tokenAleatorio } from '../../seguranca/cripto.js';
+import { aceitarTermos, DATA_TERMOS, POLITICA_DE_PRIVACIDADE, TERMOS_DE_USO, VERSAO_TERMOS } from '../../termos/termos.js';
 import { aceitarConvite, usuarioPublico } from '../../usuarios/usuarios.js';
+import { ErroRegra } from '../../erros.js';
 import {
-  ContextoRotas, COOKIES, gravarCookiesPreMfa, gravarCookiesSessao, limparCookies, origem,
+  ContextoRotas, contexto, COOKIES, gravarCookiesPreMfa, gravarCookiesSessao, limparCookies, origem,
 } from '../comum.js';
 
 const tags = ['Login e sessão'];
@@ -112,6 +114,25 @@ export async function rotasAuth(app: FastifyInstance, { auth, cripto, config, pr
 
   r.get('/eu', { config: { acesso: 'sessao' }, schema: { tags, summary: 'Usuário logado' } }, async (req) =>
     usuarioPublico(req.logado!.usuario, cripto));
+
+  r.get('/termos', {
+    config: { acesso: 'publico' },
+    schema: { tags, summary: 'Termos de Uso e Política de Privacidade (versão atual)' },
+  }, async () => ({ versao: VERSAO_TERMOS, data: DATA_TERMOS, termosDeUso: TERMOS_DE_USO, politicaDePrivacidade: POLITICA_DE_PRIVACIDADE }));
+
+  r.post('/termos/aceitar', {
+    config: { acesso: 'sessao' },
+    schema: {
+      tags, summary: 'Aceitar a versão atual dos Termos de Uso e da Política de Privacidade',
+      description: 'Obrigatório no primeiro acesso e a cada nova versão. Grava a versão, a data e o IP.',
+      body: z.object({ versao: z.string().max(20) }),
+    },
+  }, async (req) => {
+    // O site manda a versão que mostrou: se mudou nesse meio-tempo, pede para ler a nova
+    if (req.body.versao !== VERSAO_TERMOS) throw new ErroRegra('Os termos foram atualizados. Recarregue a página e leia a nova versão.');
+    await aceitarTermos(prisma, req.logado!.usuario.id, contexto(req));
+    return { ok: true, versao: VERSAO_TERMOS };
+  });
 
   r.post('/trocar-senha', {
     config: { acesso: 'sessao', rateLimit: limiteLogin },

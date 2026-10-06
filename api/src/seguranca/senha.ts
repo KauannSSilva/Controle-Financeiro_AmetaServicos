@@ -1,4 +1,6 @@
 /** Hash de senha com Argon2id e política de senha forte. */
+import { readFileSync } from 'node:fs';
+import { gunzipSync } from 'node:zlib';
 import { hash, verify, Algorithm } from '@node-rs/argon2';
 import { ErroRegra } from '../erros.js';
 
@@ -30,13 +32,27 @@ export function hashParaTempoConstante(): Promise<string> {
   return hashFalso;
 }
 
-// Senhas comuns e padrões de vazamentos conhecidos. A Fase 4 amplia com uma lista maior.
+// Palavras brasileiras e da empresa que as listas internacionais não pegam
 const COMUNS = [
   'senha', 'password', 'qwerty', 'abc123', 'admin', 'administrador', 'ameta', 'ametaservicos', 'brasil',
   'iloveyou', 'welcome', 'letmein', 'trocar', 'mudar', 'teste', 'master', 'dragon', 'monkey', 'football',
   'futebol', 'flamengo', 'corinthians', 'palmeiras', 'saopaulo', 'vasco', 'gremio', 'cruzeiro', 'santos',
   'internacional', 'botafogo', 'fluminense', 'princesa', 'jesus', 'deus', 'amor', 'familia', 'claro', 'vivo',
 ];
+
+/**
+ * Senhas vazadas: as 100 mil mais usadas em vazamentos (lista do NCSC do Reino Unido, tirada do
+ * Have I Been Pwned), já simplificadas (minúsculas, sem acentos e sem símbolos). Fica no próprio
+ * projeto: nenhuma senha sai do servidor para ser conferida.
+ */
+let vazadas: Set<string> | undefined;
+function senhasVazadas() {
+  vazadas ??= new Set([
+    ...gunzipSync(readFileSync(new URL('./senhas-vazadas.txt.gz', import.meta.url))).toString('utf8').split('\n').filter(Boolean),
+    ...COMUNS,
+  ]);
+  return vazadas;
+}
 
 export function validarPoliticaSenha(senha: string, contexto: { email?: string; nome?: string } = {}) {
   if (senha.length < 12) throw new ErroRegra('A senha precisa ter pelo menos 12 caracteres');
@@ -46,7 +62,9 @@ export function validarPoliticaSenha(senha: string, contexto: { email?: string; 
     throw new ErroRegra('Senha muito fácil de adivinhar');
   }
   const semNumeros = simples.replace(/[0-9]/g, '');
-  if (COMUNS.some((c) => semNumeros === c || simples === c || (simples.startsWith(c) && /^[0-9]*$/.test(simples.slice(c.length))))) {
+  const lista = senhasVazadas();
+  if (lista.has(simples) || lista.has(semNumeros)
+    || COMUNS.some((c) => simples.startsWith(c) && /^[0-9]*$/.test(simples.slice(c.length)))) {
     throw new ErroRegra('Esta senha é comum demais. Escolha outra.');
   }
   if (contexto.email && senha.toLowerCase().includes(contexto.email.toLowerCase())) {

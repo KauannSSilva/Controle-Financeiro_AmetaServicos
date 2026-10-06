@@ -13,6 +13,8 @@ export interface Usuario {
   /** false = ainda não aceitou o convite do e-mail (não consegue entrar) */
   conviteAceito: boolean;
   conviteExpiraEm: string | null;
+  /** Precisa aceitar a versão atual dos Termos de Uso e da Política de Privacidade */
+  termosPendentes: boolean;
   criadoEm: string;
 }
 
