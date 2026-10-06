@@ -1,0 +1,11 @@
+# Nada de segredos, dados de clientes ou dependências locais dentro das imagens
+.env
+.env.*
+!.env.example
+data/
+**/*.xlsx
+**/*.csv
+**/node_modules
+**/dist
+.git
+docs

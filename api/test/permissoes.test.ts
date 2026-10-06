@@ -2,9 +2,12 @@
  * Matriz de permissões da seção 5.2 da especificação, conferida rota a rota no servidor,
  * e o teste que percorre todas as rotas sem login esperando 401.
  */
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { PerfilUsuario, PrismaClient } from '@prisma/client';
 import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { App } from '../src/http/app.js';
+import { inventarioMarkdown } from '../src/http/inventario.js';
 import { inserirItem, removerItem } from '../src/ordens/ordens.js';
 import { criarUsuario } from '../src/usuarios/usuarios.js';
 import { cripto, Navegador, novaApp, SENHA, usuarioLogado } from './api-util.js';
@@ -37,6 +40,20 @@ describe('rotas sem login', () => {
     for (const url of ['/.env', '/.env.local', '/.git/config', '/api/v1/.env', '/api/v2/itens', '/debug', '/api/v1/debug']) {
       expect((await app.inject({ url })).statusCode, url).toBe(404);
     }
+  });
+
+  it('a API expõe exatamente as rotas do inventário (docs/inventario-rotas.md)', async () => {
+    const gravado = readFileSync(path.resolve(import.meta.dirname, '../../docs/inventario-rotas.md'), 'utf8');
+    expect(inventarioMarkdown(app.inventarioRotas), 'Rota nova ou removida: rode npm run api:rotas e revise').toBe(gravado);
+    // Nada fora de /api/v1 (nem versões antigas ou rotas de teste)
+    for (const r of app.inventarioRotas) expect(r.url).toMatch(/^\/api\/v1\//);
+  });
+
+  it('métodos não usados numa rota dão 404', async () => {
+    for (const metodo of ['PUT', 'PATCH', 'DELETE'] as const) {
+      expect((await app.inject({ method: metodo, url: '/api/v1/saude' })).statusCode, metodo).toBe(404);
+    }
+    expect((await app.inject({ method: 'PUT', url: '/api/v1/itens' })).statusCode).toBe(404);
   });
 
   it('TRACE e troca de método por cabeçalho são recusados', async () => {

@@ -3,6 +3,7 @@
  * de DATABASE_URL_APP. Roda junto com npm run db:migrate. A senha nunca fica no Git, só no .env.
  */
 import { PrismaClient } from '@prisma/client';
+import { trocarHost } from '../src/db.js';
 
 const urlApp = process.env.DATABASE_URL_APP;
 if (!urlApp) {
@@ -17,7 +18,7 @@ if (!/^[a-z_][a-z0-9_]{0,62}$/.test(usuario) || !senha) {
   process.exit(1);
 }
 
-const prisma = new PrismaClient({ datasources: { db: { url: process.env.DATABASE_URL } } });
+const prisma = new PrismaClient({ datasources: { db: { url: trocarHost(process.env.DATABASE_URL) } } });
 try {
   // format(%I, %L) monta o comando com nome e senha escapados pelo próprio PostgreSQL
   const comandos = await prisma.$queryRaw<{ sql: string }[]>`

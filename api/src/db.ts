@@ -47,6 +47,15 @@ export function definirPerfil(perfil: PerfilBanco | null, usuarioId: string | nu
   c.usuarioId = usuarioId;
 }
 
+/** No docker compose o banco se chama "postgres", não "localhost": BANCO_HOST troca o endereço das URLs do .env. */
+export function trocarHost(url: string | undefined): string | undefined {
+  if (!url || !process.env.BANCO_HOST) return url;
+  const u = new URL(url);
+  u.hostname = process.env.BANCO_HOST;
+  u.port = '5432';
+  return u.toString();
+}
+
 const configurar = (c: ContextoBanco) =>
   Prisma.sql`SELECT set_config('app.perfil', ${c.perfil ?? ''}, true), set_config('app.usuario_id', ${c.usuarioId ?? ''}, true)`;
 
