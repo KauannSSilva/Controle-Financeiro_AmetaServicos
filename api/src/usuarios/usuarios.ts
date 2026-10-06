@@ -43,7 +43,7 @@ export function usuarioPublico(u: Usuario, cripto: Cripto): UsuarioPublico {
 }
 
 async function auditar(tx: Prisma.TransactionClient, ctx: Contexto, acao: string, entidadeId: string, antes?: object, depois?: object) {
-  await tx.logAuditoria.create({
+  await tx.logAuditoria.createMany({
     data: {
       usuarioId: ctx.usuarioId ?? null, ip: ctx.ip ?? null, acao, entidade: 'usuarios', entidadeId,
       valoresAntes: antes ?? Prisma.JsonNull, valoresDepois: depois ?? Prisma.JsonNull,

@@ -1,8 +1,10 @@
 /** Apoio dos testes da API: navegador simulado (guarda cookies e manda o token CSRF) e login completo com MFA. */
 import { PerfilUsuario, PrismaClient } from '@prisma/client';
 import { lerConfig } from '../src/config.js';
+import { criarPrisma } from '../src/db.js';
 import { App, criarApp } from '../src/http/app.js';
 import { Email } from '../src/email/email.js';
+import { urlAppTeste } from './ambiente.js';
 import { COOKIES, PREFIXO } from '../src/http/comum.js';
 import { Cripto } from '../src/seguranca/cripto.js';
 import { codigoMfaAtual } from '../src/seguranca/totp.js';
@@ -15,9 +17,13 @@ export const caixaDeEntrada: Email[] = [];
 /** Quando true, o envio falha (simula o SMTP fora do ar) */
 export const smtp = { fora: false };
 
-export async function novaApp(prisma: PrismaClient) {
+/** Conexão da API nos testes: papel sem privilégio de dono, sujeito ao RLS */
+const prismaApp = criarPrisma(urlAppTeste());
+
+/** O prisma recebido (dono do banco) fica para preparar dados; a API usa o papel ameta_app_teste. */
+export async function novaApp(_prisma: PrismaClient) {
   return criarApp({
-    prisma, config: lerConfig(),
+    prisma: prismaApp, config: lerConfig(),
     enviarEmail: async (m) => {
       if (smtp.fora) throw new Error('SMTP fora do ar');
       caixaDeEntrada.push(m);

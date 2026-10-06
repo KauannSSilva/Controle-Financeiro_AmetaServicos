@@ -8,7 +8,7 @@ import { createInterface } from 'node:readline/promises';
 import { Writable } from 'node:stream';
 import { parseArgs } from 'node:util';
 import { lerConfig } from '../src/config.js';
-import { criarPrisma } from '../src/db.js';
+import { criarPrisma, entrarComoSistema } from '../src/db.js';
 import { ErroRegra } from '../src/erros.js';
 import { Cripto } from '../src/seguranca/cripto.js';
 import { hashSenha, validarPoliticaSenha } from '../src/seguranca/senha.js';
@@ -62,6 +62,7 @@ async function perguntarSenha(pergunta: string): Promise<string> {
 
 const config = lerConfig();
 const prisma = criarPrisma();
+entrarComoSistema();
 const cripto = new Cripto(config.CHAVE_CRIPTOGRAFIA, config.CHAVE_HMAC);
 
 async function lerSenhaNova() {
@@ -87,7 +88,7 @@ try {
         data: { senhaHash: await hashSenha(senha), deveTrocarSenha: false, tentativasFalhas: 0, bloqueadoAte: null, ativo: true },
       }),
       prisma.sessao.updateMany({ where: { usuarioId: u.id, revogadoEm: null }, data: { revogadoEm: new Date() } }),
-      prisma.logAuditoria.create({ data: { usuarioId: u.id, acao: 'SENHA_REDEFINIDA_CLI', entidade: 'usuarios', entidadeId: u.id } }),
+      prisma.logAuditoria.createMany({ data: { usuarioId: u.id, acao: 'SENHA_REDEFINIDA_CLI', entidade: 'usuarios', entidadeId: u.id } }),
     ]);
     console.log(`Senha do ADMIN ${values.email} redefinida. Se a API estiver aberta, feche (Ctrl+C) e rode npm run api de novo.`);
   } else {

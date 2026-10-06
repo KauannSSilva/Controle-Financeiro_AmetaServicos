@@ -16,6 +16,7 @@ import {
 } from 'fastify-type-provider-zod';
 import { Autenticacao } from '../auth/auth.js';
 import { Config } from '../config.js';
+import { contextoRequisicao, definirPerfil } from '../db.js';
 import { criarEnvioSmtp, EnviarEmail } from '../email/email.js';
 import { ErroConflito, ErroHttp, ErroNaoEncontrado, ErroRegra } from '../erros.js';
 import { Cripto, iguaisSeguro } from '../seguranca/cripto.js';
@@ -123,6 +124,9 @@ export async function criarApp({ prisma, config, logger = false, enviarEmail }: 
     });
   }
 
+  // Cada requisição tem o seu contexto de banco (perfil usado pelo RLS); começa sem perfil = nada liberado
+  app.addHook('onRequest', (_req, _reply, done) => contextoRequisicao(done));
+
   // ---------- Bloqueios gerais ----------
   app.addHook('onRequest', async (req, reply) => {
     // Sem truques para trocar o método HTTP (APIs alternativas)
@@ -146,10 +150,13 @@ export async function criarApp({ prisma, config, logger = false, enviarEmail }: 
         return reply.code(status).send({ erro: status === 401 ? 'Faça login para continuar' : 'Token CSRF ausente ou inválido. Recarregue a página.' });
       }
     }
+    // Login, sessão e convite rodam no banco como SISTEMA; o resto, com o perfil de quem está logado
+    definirPerfil('SISTEMA', null);
     if (acesso === 'publico' || acesso === 'pre-mfa' || acesso === 'refresh') return; // validados na própria rota
     const logado = await auth.validarAcesso(req.cookies[COOKIES.acesso]);
     req.logado = logado;
     if (acesso === 'sessao') return;
+    definirPerfil(logado.usuario.perfil, logado.usuario.id);
     if (logado.usuario.deveTrocarSenha) {
       return reply.code(403).send({ erro: 'Troque a sua senha provisória antes de continuar', codigo: 'TROCAR_SENHA' });
     }

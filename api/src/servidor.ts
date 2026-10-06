@@ -5,7 +5,13 @@ import { criarApp } from './http/app.js';
 import { PREFIXO } from './http/comum.js';
 
 const config = lerConfig();
-const prisma = criarPrisma();
+// A API usa o papel de menor privilégio; o dono do banco fica só para migrações e scripts
+if (!config.DATABASE_URL_APP) {
+  if (config.NODE_ENV === 'production') throw new Error('Defina DATABASE_URL_APP (papel ameta_app) para subir a API em produção.');
+  console.warn('\nAVISO: DATABASE_URL_APP não está no .env. Rode npm run api:chaves e depois npm run db:migrate.\n'
+    + 'Por enquanto a API usa o dono do banco, e as regras de acesso do banco (RLS) não valem para ela.\n');
+}
+const prisma = criarPrisma(config.DATABASE_URL_APP ?? process.env.DATABASE_URL);
 const app = await criarApp({ prisma, config, logger: true });
 
 const fechar = async () => {

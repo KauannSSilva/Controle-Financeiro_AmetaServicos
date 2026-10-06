@@ -337,7 +337,7 @@ export class Autenticacao {
   }
 
   private async auditar(usuarioId: string | null, acao: string, origem: Origem, depois?: object, tx: Prisma.TransactionClient = this.prisma) {
-    await tx.logAuditoria.create({
+    await tx.logAuditoria.createMany({
       data: {
         usuarioId, acao, entidade: 'usuarios', entidadeId: usuarioId, ip: origem.ip?.slice(0, 45) ?? null,
         valoresDepois: depois ?? Prisma.JsonNull,

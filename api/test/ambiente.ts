@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 
@@ -13,7 +13,19 @@ export function urlBancoTeste(): string {
   const base = process.env.DATABASE_URL;
   if (!base) throw new Error('Defina DATABASE_URL (ou DATABASE_URL_TESTE) no .env para rodar os testes.');
   const url = new URL(base);
-  url.pathname = `${url.pathname.replace(/^\//, '')}_teste`;
+  const nome = url.pathname.replace(/^\//, '');
+  url.pathname = nome.endsWith('_teste') ? nome : `${nome}_teste`;
+  return url.toString();
+}
+
+/**
+ * A API dos testes conecta como ameta_app_teste (membro de ameta_app, sem ser dono), para o RLS valer
+ * como em produção. A senha é derivada da senha do dono do banco, que os testes já conhecem.
+ */
+export function urlAppTeste(): string {
+  const url = new URL(urlBancoTeste());
+  url.password = createHash('sha256').update(`ameta-app-teste:${decodeURIComponent(url.password)}`).digest('hex');
+  url.username = 'ameta_app_teste';
   return url.toString();
 }
 

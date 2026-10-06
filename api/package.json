@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "db:migrate": "dotenv -e ../.env -- prisma migrate deploy",
+    "db:migrate": "dotenv -e ../.env -- prisma migrate deploy && tsx --env-file=../.env scripts/configurar-banco.ts",
     "db:status": "dotenv -e ../.env -- prisma migrate status",
     "db:generate": "prisma generate",
     "postinstall": "prisma generate",

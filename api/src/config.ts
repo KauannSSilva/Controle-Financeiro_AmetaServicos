@@ -7,6 +7,8 @@ const chave32 = (nome: string) =>
 const esquema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   API_PORTA: z.coerce.number().int().default(3000),
+  /** Conexão da API com o papel ameta_app (sem ser dono das tabelas): o RLS vale para ela. Gerada por npm run api:chaves. */
+  DATABASE_URL_APP: z.string().optional(),
   /** Endereço do front (CORS). Na Fase 3 é o Vite; em produção, o domínio real. */
   ORIGEM_FRONT: z.string().url().default('http://localhost:5173'),
   /** Assina o token de acesso (HS256). */

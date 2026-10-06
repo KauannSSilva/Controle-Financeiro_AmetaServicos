@@ -91,7 +91,7 @@ const json = (v: unknown) => JSON.parse(JSON.stringify(v)) as Prisma.InputJsonVa
 async function auditar(
   tx: Prisma.TransactionClient, ctx: Contexto, acao: string, entidadeId: string, antes?: unknown, depois?: unknown,
 ) {
-  await tx.logAuditoria.create({
+  await tx.logAuditoria.createMany({
     data: {
       usuarioId: ctx.usuarioId ?? null, ip: ctx.ip ?? null, acao, entidade: 'itens_po', entidadeId,
       valoresAntes: antes === undefined ? Prisma.JsonNull : json(antes),
