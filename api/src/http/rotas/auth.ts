@@ -6,6 +6,7 @@ import { tokenAleatorio } from '../../seguranca/cripto.js';
 import { aceitarTermos, DATA_TERMOS, POLITICA_DE_PRIVACIDADE, TERMOS_DE_USO, VERSAO_TERMOS } from '../../termos/termos.js';
 import { aceitarConvite, usuarioPublico } from '../../usuarios/usuarios.js';
 import { ErroRegra } from '../../erros.js';
+import { TEMPOS } from '../../config.js';
 import {
   ContextoRotas, contexto, COOKIES, gravarCookiesPreMfa, gravarCookiesSessao, limparCookies, origem,
 } from '../comum.js';
@@ -138,11 +139,24 @@ export async function rotasAuth(app: FastifyInstance, { auth, cripto, config, pr
     config: { acesso: 'sessao', rateLimit: limiteLogin },
     schema: {
       tags, summary: 'Trocar a própria senha (obrigatório no primeiro acesso)',
-      description: 'Mínimo de 12 caracteres. Senhas comuns são recusadas.',
-      body: z.object({ senhaAtual: z.string().max(128), novaSenha: z.string().max(128) }),
+      description: 'Mínimo de 12 caracteres. Senhas comuns são recusadas. Pede também o código do app, menos na troca da senha provisória.',
+      body: z.object({ senhaAtual: z.string().max(128), novaSenha: z.string().max(128), codigo: z.string().max(10).optional() }),
     },
   }, async (req) => {
-    await auth.trocarSenha(req.logado!.usuario, req.logado!.sessaoId, req.body.senhaAtual, req.body.novaSenha, origem(req));
+    const { senhaAtual, novaSenha, codigo } = req.body;
+    await auth.trocarSenha(req.logado!.usuario, req.logado!.sessaoId, senhaAtual, novaSenha, origem(req), codigo);
     return { ok: true };
+  });
+
+  r.post('/confirmar-identidade', {
+    config: { acesso: 'sessao', rateLimit: limiteLogin },
+    schema: {
+      tags, summary: 'Confirmar senha + código do app antes de ações sensíveis do ADMIN',
+      description: 'Libera, por 5 minutos nesta sessão, as rotas que respondem 403 com codigo CONFIRMAR_IDENTIDADE.',
+      body: z.object({ senha: z.string().max(128), codigo: z.string().max(10) }),
+    },
+  }, async (req) => {
+    await auth.confirmarIdentidade(req.logado!.usuario, req.logado!.sessaoId, req.body.senha, req.body.codigo, origem(req));
+    return { ok: true, validoPorSegundos: TEMPOS.confirmacaoMs / 1000 };
   });
 }

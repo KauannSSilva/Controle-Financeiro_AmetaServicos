@@ -227,12 +227,12 @@ export async function rotasOrdens(app: FastifyInstance, { prisma, cripto }: Cont
   });
 
   r.post('/itens/:id/restaurar', {
-    config: { acesso: SO_ADMIN },
+    config: { acesso: SO_ADMIN, confirmar: true },
     schema: { tags, summary: 'Restaurar item removido (só ADMIN)', params: id },
   }, async (req) => saida(await restaurarItem(prisma, req.params.id, contexto(req))));
 
   r.delete('/itens/:id/definitivo', {
-    config: { acesso: SO_ADMIN },
+    config: { acesso: SO_ADMIN, confirmar: true },
     schema: { tags, summary: 'Excluir de vez (só ADMIN; a auditoria guarda uma cópia)', params: id },
   }, async (req) => {
     await excluirDefinitivo(prisma, req.params.id, contexto(req));

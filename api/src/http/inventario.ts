@@ -10,12 +10,12 @@ const ROTULO: Record<string, string> = {
   sessao: 'Logado com MFA',
 };
 
-export function inventarioMarkdown(rotas: { metodo: string; url: string; acesso: unknown }[]): string {
+export function inventarioMarkdown(rotas: { metodo: string; url: string; acesso: unknown; confirmar?: boolean }[]): string {
   const linhas = [...rotas]
     .sort((a, b) => a.url.localeCompare(b.url) || a.metodo.localeCompare(b.metodo))
     .map((r) => {
       const acesso = Array.isArray(r.acesso) ? `Logado com MFA, perfil ${r.acesso.join(', ')}` : ROTULO[String(r.acesso)] ?? String(r.acesso);
-      return `| ${r.metodo} | \`${r.url}\` | ${acesso} |`;
+      return `| ${r.metodo} | \`${r.url}\` | ${acesso}${r.confirmar ? ' + confirmar senha e código do app' : ''} |`;
     });
   return [
     '# Inventário de rotas da API',

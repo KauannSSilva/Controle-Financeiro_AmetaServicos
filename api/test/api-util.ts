@@ -125,5 +125,7 @@ export async function usuarioLogado(app: App, prisma: PrismaClient, perfil: Perf
   const nav = new Navegador(app);
   await nav.entrar(email);
   await nav.aceitarTermos();
+  // Já confirmou senha + código nesta sessão: as ações sensíveis do ADMIN ficam liberadas (o fluxo real está em confirmacao.test.ts)
+  await prisma.sessao.updateMany({ where: { usuarioId: u.id }, data: { identidadeConfirmadaEm: new Date() } });
   return { nav, usuario: u, email };
 }

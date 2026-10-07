@@ -15,7 +15,7 @@ import {
   hasZodFastifySchemaValidationErrors, jsonSchemaTransform, serializerCompiler, validatorCompiler, ZodTypeProvider,
 } from 'fastify-type-provider-zod';
 import { Autenticacao } from '../auth/auth.js';
-import { Config } from '../config.js';
+import { Config, TEMPOS } from '../config.js';
 import { contextoRequisicao, definirPerfil } from '../db.js';
 import { criarEnvioSmtp, EnviarEmail } from '../email/email.js';
 import { ErroConflito, ErroHttp, ErroNaoEncontrado, ErroRegra } from '../erros.js';
@@ -53,13 +53,15 @@ export async function criarApp({ prisma, config, logger = false, enviarEmail }: 
   app.setSerializerCompiler(serializerCompiler);
 
   // ---------- Negar por padrão: toda rota precisa declarar o acesso ----------
-  const inventario: { metodo: string; url: string; acesso: unknown }[] = [];
+  const inventario: { metodo: string; url: string; acesso: unknown; confirmar?: boolean }[] = [];
   app.decorate('inventarioRotas', inventario);
   app.addHook('onRoute', (rota) => {
     if (rota.url.startsWith(`${PREFIXO}/docs`)) return; // páginas do Swagger (só fora de produção)
     if (rota.method === 'OPTIONS' && rota.url === '*') return; // pré-voo do CORS
     if (!rota.config?.acesso) throw new Error(`Rota ${rota.method} ${rota.url} sem config.acesso`);
-    for (const m of [rota.method].flat()) if (m !== 'HEAD') inventario.push({ metodo: m, url: rota.url, acesso: rota.config.acesso });
+    for (const m of [rota.method].flat()) {
+      if (m !== 'HEAD') inventario.push({ metodo: m, url: rota.url, acesso: rota.config.acesso, confirmar: rota.config.confirmar });
+    }
   });
 
   await app.register(cookie);
@@ -171,6 +173,11 @@ export async function criarApp({ prisma, config, logger = false, enviarEmail }: 
     }
     if (!acesso.includes(logado.usuario.perfil)) {
       return reply.code(403).send({ erro: 'Seu perfil não tem permissão para esta ação' });
+    }
+    // Ações sensíveis: senha + código do app confirmados há pouco nesta sessão
+    const confirmada = logado.identidadeConfirmadaEm?.getTime();
+    if (req.routeOptions.config?.confirmar && (!confirmada || Date.now() - confirmada > TEMPOS.confirmacaoMs)) {
+      return reply.code(403).send({ erro: 'Confirme sua senha e o código do app para continuar', codigo: 'CONFIRMAR_IDENTIDADE' });
     }
   });
 

@@ -17,6 +17,15 @@ export function definirAoExpirar(fn: () => void) {
   aoExpirar = fn;
 }
 
+/**
+ * Chamado quando a API pede para confirmar senha + código do app (ações sensíveis do ADMIN).
+ * Mostra a janela de confirmação; devolve true se a pessoa confirmou (a ação é repetida sozinha).
+ */
+let aoPedirConfirmacao: () => Promise<boolean> = async () => false;
+export function definirAoPedirConfirmacao(fn: () => Promise<boolean>) {
+  aoPedirConfirmacao = fn;
+}
+
 let renovando: Promise<boolean> | null = null;
 async function renovar(): Promise<boolean> {
   renovando ??= fetch('/api/v1/auth/renovar', { method: 'POST', headers: { 'x-csrf-token': csrf() }, credentials: 'same-origin' })
@@ -40,6 +49,10 @@ async function chamar(metodo: Metodo, caminho: string, corpo?: unknown, tentarRe
   if (r.status === 401 && tentarRenovar && !caminho.startsWith('auth/')) {
     if (await renovar()) return chamar(metodo, caminho, corpo, false);
     aoExpirar();
+  }
+  if (r.status === 403) {
+    const dados = await r.clone().json().catch(() => null);
+    if (dados?.codigo === 'CONFIRMAR_IDENTIDADE' && (await aoPedirConfirmacao())) return chamar(metodo, caminho, corpo, false);
   }
   return r;
 }

@@ -162,15 +162,19 @@ model CodigoRecuperacaoMfa {
 }
 
 model Sessao {
-  id               String    @id @default(uuid()) @db.Uuid
-  usuarioId        String    @map("usuario_id") @db.Uuid
-  refreshTokenHash String    @unique @map("refresh_token_hash") @db.VarChar(128)
-  expiraEm         DateTime  @map("expira_em") @db.Timestamptz(3)
-  revogadoEm       DateTime? @map("revogado_em") @db.Timestamptz(3)
-  ultimoUsoEm      DateTime? @map("ultimo_uso_em") @db.Timestamptz(3)
-  ip               String?   @db.VarChar(45)
-  userAgent        String?   @map("user_agent") @db.VarChar(300)
-  criadoEm         DateTime  @default(now()) @map("criado_em") @db.Timestamptz(3)
+  id                     String    @id @default(uuid()) @db.Uuid
+  usuarioId              String    @map("usuario_id") @db.Uuid
+  refreshTokenHash       String    @unique @map("refresh_token_hash") @db.VarChar(128)
+  expiraEm               DateTime  @map("expira_em") @db.Timestamptz(3)
+  revogadoEm             DateTime? @map("revogado_em") @db.Timestamptz(3)
+  ultimoUsoEm            DateTime? @map("ultimo_uso_em") @db.Timestamptz(3)
+  /**
+   * Última vez que a pessoa confirmou a senha e o código MFA nesta sessão (ações sensíveis do ADMIN)
+   */
+  identidadeConfirmadaEm DateTime? @map("identidade_confirmada_em") @db.Timestamptz(3)
+  ip                     String?   @db.VarChar(45)
+  userAgent              String?   @map("user_agent") @db.VarChar(300)
+  criadoEm               DateTime  @default(now()) @map("criado_em") @db.Timestamptz(3)
 
   usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 

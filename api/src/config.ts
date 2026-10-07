@@ -60,4 +60,6 @@ export const TEMPOS = {
   bloqueioMaxMs: 24 * 60 * 60 * 1000,
   /** Prazo para aceitar o convite enviado por e-mail */
   conviteMs: 72 * 60 * 60 * 1000,
+  /** Depois de confirmar senha + código MFA, as ações sensíveis do ADMIN ficam liberadas por este tempo */
+  confirmacaoMs: 5 * 60 * 1000,
 };

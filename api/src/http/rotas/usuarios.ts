@@ -12,6 +12,8 @@ const id = z.object({ id: z.uuid('ID inválido') });
 const perfil = z.enum(['ADMIN', 'OPERADOR', 'VISUALIZADOR']);
 const nome = z.string().trim().min(2, 'Informe o nome').max(120);
 const config = { acesso: SO_ADMIN };
+/** Alterações em usuários: pedem senha + código do app confirmados há pouco */
+const sensivel = { acesso: SO_ADMIN, confirmar: true };
 
 export async function rotasUsuarios(app: FastifyInstance, { prisma, cripto, config: cfg, enviarEmail }: ContextoRotas) {
   const r = app.withTypeProvider<ZodTypeProvider>();
@@ -24,7 +26,7 @@ export async function rotasUsuarios(app: FastifyInstance, { prisma, cripto, conf
     usuarioPublico(await obterUsuario(prisma, req.params.id), cripto));
 
   r.post('/', {
-    config,
+    config: sensivel,
     schema: {
       tags, summary: 'Criar usuário',
       description: 'Envia um convite por e-mail com o nome, o e-mail e a senha provisória. O usuário só entra depois de aceitar '
@@ -41,7 +43,7 @@ export async function rotasUsuarios(app: FastifyInstance, { prisma, cripto, conf
   });
 
   r.patch('/:id', {
-    config,
+    config: sensivel,
     schema: {
       tags, summary: 'Editar nome, perfil ou bloquear (ativo = false)',
       params: id,
@@ -49,27 +51,27 @@ export async function rotasUsuarios(app: FastifyInstance, { prisma, cripto, conf
     },
   }, async (req) => usuarioPublico(await editarUsuario(prisma, cripto, req.params.id, req.body, contexto(req)), cripto));
 
-  r.delete('/:id', { config, schema: { tags, summary: 'Excluir usuário (o histórico continua)', params: id } }, async (req) => {
+  r.delete('/:id', { config: sensivel, schema: { tags, summary: 'Excluir usuário (o histórico continua)', params: id } }, async (req) => {
     await excluirUsuario(prisma, req.params.id, contexto(req));
     return { ok: true };
   });
 
   r.post('/:id/resetar-mfa', {
-    config, schema: { tags, summary: 'Resetar o MFA (ex.: trocou de celular)', params: id },
+    config: sensivel, schema: { tags, summary: 'Resetar o MFA (ex.: trocou de celular)', params: id },
   }, async (req) => {
     await resetarMfa(prisma, req.params.id, contexto(req));
     return { ok: true };
   });
 
   r.post('/:id/desbloquear', {
-    config, schema: { tags, summary: 'Tirar o bloqueio por tentativas erradas', params: id },
+    config: sensivel, schema: { tags, summary: 'Tirar o bloqueio por tentativas erradas', params: id },
   }, async (req) => {
     await desbloquearUsuario(prisma, req.params.id, contexto(req));
     return { ok: true };
   });
 
   r.post('/:id/senha-provisoria', {
-    config,
+    config: sensivel,
     schema: {
       tags, summary: 'Definir uma senha provisória (esqueceu a senha)',
       params: id, body: z.object({ senhaProvisoria: z.string().max(128) }),
@@ -80,7 +82,7 @@ export async function rotasUsuarios(app: FastifyInstance, { prisma, cripto, conf
   });
 
   r.post('/:id/reenviar-convite', {
-    config,
+    config: sensivel,
     schema: {
       tags, summary: 'Reenviar o convite com uma nova senha provisória',
       description: 'Só para quem ainda não aceitou. O link e a senha do convite anterior deixam de valer.',

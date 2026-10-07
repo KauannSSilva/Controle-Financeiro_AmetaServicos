@@ -11,6 +11,7 @@ export const ACOES: Record<string, string> = {
   MFA_ATIVADO: 'Cadastrou o autenticador',
   MFA_RECUPERACAO_USADA: 'Usou código de recuperação',
   SENHA_ALTERADA: 'Trocou a própria senha',
+  IDENTIDADE_CONFIRMADA: 'Confirmou senha e código',
   USUARIO_BLOQUEADO_TENTATIVAS: 'Travado por tentativas erradas',
   USUARIO_CRIADO: 'Criou usuário',
   CONVITE_ENVIADO: 'Convite enviado',
@@ -48,11 +49,14 @@ export function frase(r: RegistroAuditoria): string {
       if (!r.usuarioId) return 'Alguém tentou entrar com um e-mail que não está cadastrado';
       if (d.motivo === 'convite_pendente') return 'Tentou entrar antes de aceitar o convite do e-mail';
       if (d.motivo === 'usuario_inativo') return 'Tentou entrar, mas o acesso está bloqueado';
+      if (d.etapa === 'confirmacao') return 'Errou a senha ou o código ao confirmar uma ação sensível';
+      if (d.etapa === 'troca_senha') return 'Errou a senha atual ou o código ao trocar a senha';
       return d.etapa === 'mfa' ? 'Errou o código do autenticador' : 'Errou a senha';
     case 'LOGOUT': return 'Saiu do site';
     case 'MFA_ATIVADO': return 'Cadastrou o autenticador do celular';
     case 'MFA_RECUPERACAO_USADA': return `Usou um código de recuperação${typeof d.restantes === 'number' ? ` (restam ${d.restantes})` : ''}`;
     case 'SENHA_ALTERADA': return 'Trocou a própria senha';
+    case 'IDENTIDADE_CONFIRMADA': return 'Confirmou a senha e o código do app para fazer uma ação sensível';
     case 'USUARIO_BLOQUEADO_TENTATIVAS': return `Ficou travado por muitas tentativas erradas${d.ate ? `, até ${quando(String(d.ate))}` : ''}`;
     case 'USUARIO_CRIADO': return `Criou o usuário ${alvo}${d.perfil ? ` como ${ROTULO_PERFIL[d.perfil as Perfil] ?? d.perfil}` : ''}`;
     case 'CONVITE_ENVIADO': return `Enviou o convite por e-mail para ${alvo}`;

@@ -20,10 +20,12 @@ export type Acesso = 'publico' | 'pre-mfa' | 'refresh' | 'sessao' | PerfilUsuari
 declare module 'fastify' {
   interface FastifyContextConfig {
     acesso?: Acesso;
+    /** Ação sensível: exige ter confirmado senha + código MFA há pouco (TEMPOS.confirmacaoMs) */
+    confirmar?: boolean;
   }
   interface FastifyInstance {
     /** Todas as rotas da API com o acesso exigido (usado nos testes de segurança) */
-    inventarioRotas: { metodo: string; url: string; acesso: unknown }[];
+    inventarioRotas: { metodo: string; url: string; acesso: unknown; confirmar?: boolean }[];
   }
   interface FastifyRequest {
     logado?: UsuarioLogado;

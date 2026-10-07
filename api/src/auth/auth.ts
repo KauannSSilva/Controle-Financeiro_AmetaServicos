@@ -34,6 +34,8 @@ export interface SessaoCriada {
 export interface UsuarioLogado {
   usuario: Usuario;
   sessaoId: string;
+  /** Quando a pessoa confirmou senha + código MFA nesta sessão pela última vez */
+  identidadeConfirmadaEm: Date | null;
 }
 
 export type ProximaEtapa = 'MFA_CONFIGURAR' | 'MFA_VERIFICAR';
@@ -269,7 +271,7 @@ export class Autenticacao {
     if (!s.ultimoUsoEm || agora - s.ultimoUsoEm.getTime() > 60_000) {
       await this.prisma.sessao.update({ where: { id: s.id }, data: { ultimoUsoEm: new Date(agora) } });
     }
-    return { usuario: s.usuario, sessaoId: s.id };
+    return { usuario: s.usuario, sessaoId: s.id, identidadeConfirmadaEm: s.identidadeConfirmadaEm };
   }
 
   /** Troca o refresh token por um novo (rotação) e emite outro token de acesso. */
@@ -299,10 +301,43 @@ export class Autenticacao {
     await this.auditar(usuarioId, 'LOGOUT', origem);
   }
 
-  async trocarSenha(u: Usuario, sessaoId: string, senhaAtual: string, novaSenha: string, origem: Origem) {
-    if (!(await conferirSenha(u.senhaHash, senhaAtual))) {
-      await this.registrarFalha(u, origem, 'troca_senha');
-      throw new ErroRegra('Senha atual incorreta');
+  /**
+   * Confirma a identidade de quem já está logado (senha + código do app) antes de ações sensíveis do ADMIN.
+   * A confirmação fica gravada na sessão e vale por TEMPOS.confirmacaoMs. Erros contam para o bloqueio da conta.
+   */
+  async confirmarIdentidade(u: Usuario, sessaoId: string, senha: string, codigo: string, origem: Origem) {
+    await this.conferirSenhaECodigo(u, senha, codigo, origem, 'confirmacao');
+    await this.prisma.sessao.update({ where: { id: sessaoId }, data: { identidadeConfirmadaEm: new Date() } });
+    await this.auditar(u.id, 'IDENTIDADE_CONFIRMADA', origem);
+  }
+
+  /** Senha e código MFA de quem já está logado. Mensagem única para não dizer qual dos dois errou. */
+  private async conferirSenhaECodigo(u: Usuario, senha: string, codigo: string, origem: Origem, etapa: string) {
+    if (u.bloqueadoAte && u.bloqueadoAte.getTime() > Date.now()) throw new ErroHttp(429, MSG_BLOQUEADO);
+    if (!u.mfaAtivo || !u.mfaSecretCifrado) throw new ErroRegra('Cadastre o autenticador primeiro');
+    const senhaOk = await conferirSenha(u.senhaHash, senha);
+    const passo = await conferirCodigoMfa(this.cripto.decifrar(u.mfaSecretCifrado), codigo, u.mfaUltimoPasso);
+    const codigoOk = senhaOk && passo != null && (await this.prisma.usuario.updateMany({
+      where: { id: u.id, OR: [{ mfaUltimoPasso: null }, { mfaUltimoPasso: { lt: passo } }] },
+      data: { mfaUltimoPasso: passo },
+    })).count === 1;
+    if (!senhaOk || !codigoOk) {
+      await this.registrarFalha(u, origem, etapa);
+      throw new ErroRegra('Senha ou código do app incorreto. Se o código acabou de ser usado, espere o próximo.');
+    }
+    if (u.tentativasFalhas) await this.prisma.usuario.update({ where: { id: u.id }, data: { tentativasFalhas: 0 } });
+  }
+
+  /** Senha provisória (primeiro acesso): só a senha atual, porque o código acabou de ser usado no login. Fora isso, senha + código. */
+  async trocarSenha(u: Usuario, sessaoId: string, senhaAtual: string, novaSenha: string, origem: Origem, codigo?: string) {
+    if (u.deveTrocarSenha) {
+      if (!(await conferirSenha(u.senhaHash, senhaAtual))) {
+        await this.registrarFalha(u, origem, 'troca_senha');
+        throw new ErroRegra('Senha atual incorreta');
+      }
+    } else {
+      if (!codigo) throw new ErroRegra('Informe o código do app autenticador');
+      await this.conferirSenhaECodigo(u, senhaAtual, codigo, origem, 'troca_senha');
     }
     if (senhaAtual === novaSenha) throw new ErroRegra('A nova senha precisa ser diferente da atual');
     validarPoliticaSenha(novaSenha, { email: this.cripto.decifrar(u.emailCifrado) });

@@ -5,11 +5,12 @@ rota nova, removida ou com acesso diferente faz o teste falhar até o inventári
 
 Fora destas, só existem as páginas do Swagger (`/api/v1/docs`), que não sobem em produção.
 
-Total: 35 rotas, todas em `/api/v1`.
+Total: 36 rotas, todas em `/api/v1`.
 
 | Método | Rota | Quem acessa |
 |---|---|---|
 | GET | `/api/v1/auditoria` | Logado com MFA, perfil ADMIN |
+| POST | `/api/v1/auth/confirmar-identidade` | Logado com MFA |
 | POST | `/api/v1/auth/convite/aceitar` | Pública (sem login) |
 | GET | `/api/v1/auth/eu` | Logado com MFA |
 | POST | `/api/v1/auth/login` | Pública (sem login) |
@@ -28,19 +29,19 @@ Total: 35 rotas, todas em `/api/v1`.
 | POST | `/api/v1/itens` | Logado com MFA, perfil ADMIN, OPERADOR |
 | DELETE | `/api/v1/itens/:id` | Logado com MFA, perfil ADMIN, OPERADOR |
 | PATCH | `/api/v1/itens/:id` | Logado com MFA, perfil ADMIN, OPERADOR |
-| DELETE | `/api/v1/itens/:id/definitivo` | Logado com MFA, perfil ADMIN |
+| DELETE | `/api/v1/itens/:id/definitivo` | Logado com MFA, perfil ADMIN + confirmar senha e código do app |
 | POST | `/api/v1/itens/:id/mover` | Logado com MFA, perfil ADMIN, OPERADOR |
-| POST | `/api/v1/itens/:id/restaurar` | Logado com MFA, perfil ADMIN |
+| POST | `/api/v1/itens/:id/restaurar` | Logado com MFA, perfil ADMIN + confirmar senha e código do app |
 | GET | `/api/v1/itens/removidos` | Logado com MFA, perfil ADMIN |
 | DELETE | `/api/v1/ordens/:numeroPo` | Logado com MFA, perfil ADMIN, OPERADOR |
 | GET | `/api/v1/ordens/:numeroPo` | Logado com MFA, perfil ADMIN, OPERADOR, VISUALIZADOR |
 | GET | `/api/v1/saude` | Pública (sem login) |
 | GET | `/api/v1/usuarios` | Logado com MFA, perfil ADMIN |
-| POST | `/api/v1/usuarios` | Logado com MFA, perfil ADMIN |
-| DELETE | `/api/v1/usuarios/:id` | Logado com MFA, perfil ADMIN |
+| POST | `/api/v1/usuarios` | Logado com MFA, perfil ADMIN + confirmar senha e código do app |
+| DELETE | `/api/v1/usuarios/:id` | Logado com MFA, perfil ADMIN + confirmar senha e código do app |
 | GET | `/api/v1/usuarios/:id` | Logado com MFA, perfil ADMIN |
-| PATCH | `/api/v1/usuarios/:id` | Logado com MFA, perfil ADMIN |
-| POST | `/api/v1/usuarios/:id/desbloquear` | Logado com MFA, perfil ADMIN |
-| POST | `/api/v1/usuarios/:id/reenviar-convite` | Logado com MFA, perfil ADMIN |
-| POST | `/api/v1/usuarios/:id/resetar-mfa` | Logado com MFA, perfil ADMIN |
-| POST | `/api/v1/usuarios/:id/senha-provisoria` | Logado com MFA, perfil ADMIN |
+| PATCH | `/api/v1/usuarios/:id` | Logado com MFA, perfil ADMIN + confirmar senha e código do app |
+| POST | `/api/v1/usuarios/:id/desbloquear` | Logado com MFA, perfil ADMIN + confirmar senha e código do app |
+| POST | `/api/v1/usuarios/:id/reenviar-convite` | Logado com MFA, perfil ADMIN + confirmar senha e código do app |
+| POST | `/api/v1/usuarios/:id/resetar-mfa` | Logado com MFA, perfil ADMIN + confirmar senha e código do app |
+| POST | `/api/v1/usuarios/:id/senha-provisoria` | Logado com MFA, perfil ADMIN + confirmar senha e código do app |

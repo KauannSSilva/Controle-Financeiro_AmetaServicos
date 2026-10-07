@@ -6,6 +6,7 @@ import { api } from '../api';
 import { useAuth } from '../auth';
 import { numero } from '../formato';
 import { Contadores, ROTULO_PERFIL, STATUS } from '../tipos';
+import { ConfirmarIdentidade } from './ConfirmarIdentidade';
 import { FormSenha } from './FormSenha';
 import { Botao, Modal, useAvisos } from './ui';
 
@@ -90,6 +91,7 @@ export function Layout() {
           aoConcluir={() => { setTrocandoSenha(false); avisar('sucesso', 'Senha trocada. Use a nova senha no próximo acesso.'); }}
         />
       </Modal>
+      <ConfirmarIdentidade />
     </div>
   );
 }

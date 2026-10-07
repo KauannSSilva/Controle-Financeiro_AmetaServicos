@@ -7,7 +7,7 @@ Para cada item: como o sistema atende e como conferir. Os comandos rodam na past
 
 | Comando | O que confere |
 |---|---|
-| `npm test` | 128 testes da API, incluindo RLS, permissões por perfil, login/MFA, convite, termos, senhas vazadas e inventário de rotas |
+| `npm test` | 135 testes da API, incluindo RLS, permissões por perfil, login/MFA, convite, termos, senhas vazadas e inventário de rotas |
 | `npm run security:scan` | `.env` fora do Git (e do histórico), gitleaks no histórico inteiro, `npm audit` (moderado ou pior falha) e build do site sem nenhum valor do `.env` dentro |
 | `npm run api:rotas` | Regera `docs/inventario-rotas.md`; um teste falha se o arquivo não bater com as rotas reais |
 | CI do GitHub (`.github/workflows/ci.yml`) | Tipos, testes com PostgreSQL, build, `npm audit` e gitleaks em todo push e PR |
@@ -53,7 +53,7 @@ Para cada item: como o sistema atende e como conferir. Os comandos rodam na past
 - **Testar:** `npm audit` (0 vulnerabilidades em 06/10/2026).
 
 ### A07 — Falhas de identificação e autenticação
-- **Como:** senha + MFA obrigatório (TOTP, com bloqueio de reuso do código) para todos os perfis; 10 códigos de recuperação de uso único. Senha de 12 a 128 caracteres, sem senhas vazadas ou óbvias. 5 erros em 15 min bloqueiam a conta, dobrando o tempo a cada novo bloqueio. Mensagem de erro igual para e-mail inexistente e senha errada. Token de acesso de 15 min, refresh rotativo, sessão expira com 30 min sem uso e no máximo em 12 h; troca de senha encerra as outras sessões. Senha provisória precisa ser trocada no primeiro acesso.
+- **Como:** senha + MFA obrigatório (TOTP, com bloqueio de reuso do código) para todos os perfis; 10 códigos de recuperação de uso único. Senha de 12 a 128 caracteres, sem senhas vazadas ou óbvias. 5 erros em 15 min bloqueiam a conta, dobrando o tempo a cada novo bloqueio. Mensagem de erro igual para e-mail inexistente e senha errada. Token de acesso de 15 min, refresh rotativo, sessão expira com 30 min sem uso e no máximo em 12 h; troca de senha encerra as outras sessões. Senha provisória precisa ser trocada no primeiro acesso. Ações sensíveis do ADMIN (criar, editar, bloquear, destravar ou excluir usuário, resetar MFA, senha provisória, reenviar convite, restaurar e excluir P.O de vez) pedem a senha e o código do app de novo; a confirmação vale 5 minutos e só na sessão onde foi feita. Trocar a própria senha também pede o código (menos na senha provisória).
 - **Testar:** `npm test` (`auth.test.ts`). Na tela: tente trocar a senha para `flamengo123456` (recusada: senha vazada).
 
 ### A08 — Falhas de integridade de software e dados
@@ -74,7 +74,7 @@ Para cada item: como o sistema atende e como conferir. Os comandos rodam na past
 | Capítulo | Como é atendido | Como testar |
 |---|---|---|
 | V1 Arquitetura | Camadas separadas (site → nginx → API → banco); controle de acesso no servidor e no banco (RLS); inventário de rotas versionado | `docs/inventario-rotas.md`, `rls.test.ts` |
-| V2 Autenticação | Senha 12–128, bloqueio de vazadas, Argon2id, MFA obrigatório, limite de tentativas, recuperação por códigos de uso único, convite de uso único com validade | `auth.test.ts`, `convite.test.ts` |
+| V2 Autenticação | Senha 12–128, bloqueio de vazadas, Argon2id, MFA obrigatório, nova confirmação de senha + código antes de ações sensíveis, limite de tentativas, recuperação por códigos de uso único, convite de uso único com validade | `auth.test.ts`, `convite.test.ts`, `confirmacao.test.ts` |
 | V3 Sessão | Cookies `HttpOnly`, `Secure`, `SameSite=Strict`; tokens aleatórios guardados como hash; expiração por inatividade e absoluta; refresh rotativo; logout e troca de senha revogam sessões | `auth.test.ts` |
 | V4 Controle de acesso | Negar por padrão; perfil checado em toda rota; RLS forçado; ADMIN não altera auditoria | `permissoes.test.ts`, `rls.test.ts` |
 | V5 Validação e codificação | Zod em todas as entradas; consultas parametrizadas; saída escapada; limite de 100 KB por requisição | `ordens-api.test.ts` |
