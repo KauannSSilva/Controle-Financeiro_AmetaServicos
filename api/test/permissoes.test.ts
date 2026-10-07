@@ -22,6 +22,23 @@ beforeEach(async () => {
 afterEach(() => app.close());
 afterAll(() => prisma.$disconnect());
 
+describe('atrás de proxies (AWS)', () => {
+  it('sem CONFIAR_PROXY, X-Forwarded-For é ignorado; com 2 proxies, vale o IP real de quem acessa', async () => {
+    const tentar = async (a: App) => {
+      await a.inject({ method: 'POST', url: '/api/v1/auth/login', payload: { email: 'ninguem@ameta.com.br', senha: 'qualquer senha errada' },
+        headers: { 'x-forwarded-for': '203.0.113.9, 10.0.0.5' } });
+      return (await prisma.logAuditoria.findFirstOrThrow({ where: { acao: 'LOGIN_FALHOU' }, orderBy: { criadoEm: 'desc' } })).ip;
+    };
+    expect(await tentar(app)).toBe('127.0.0.1');
+    const atras = await novaApp(prisma, { CONFIAR_PROXY: '2' });
+    try {
+      expect(await tentar(atras)).toBe('203.0.113.9');
+    } finally {
+      await atras.close();
+    }
+  });
+});
+
 describe('rotas sem login', () => {
   it('toda rota, menos login e health check, responde 401 sem token', async () => {
     const publicas = app.inventarioRotas.filter((r) => r.acesso === 'publico').map((r) => `${r.metodo} ${r.url}`);

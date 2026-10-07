@@ -22,7 +22,7 @@ const fechar = async () => {
 process.on('SIGINT', fechar);
 process.on('SIGTERM', fechar);
 
-// Só aceita conexões do próprio computador; na AWS (Fase 5) o contêiner escuta atrás do balanceador
+// Só aceita conexões do próprio computador; na AWS o contêiner escuta atrás do balanceador
 await app.listen({ host: config.API_HOST ?? (config.NODE_ENV === 'production' ? '0.0.0.0' : '127.0.0.1'), port: config.API_PORTA });
 if (config.NODE_ENV !== 'production') {
   console.log(`\nAPI no ar. Abra no navegador: http://localhost:${config.API_PORTA}${PREFIXO}/docs\n`);

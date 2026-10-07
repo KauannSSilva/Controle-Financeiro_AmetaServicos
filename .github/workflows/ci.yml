@@ -1,4 +1,4 @@
-# Roda em todo push e PR: tipos, testes (com o banco), inventário de rotas, npm audit e gitleaks
+# Roda em todo push e PR: tipos, testes (com o banco), npm audit, gitleaks, imagem de produção e Terraform (só validação)
 name: CI
 
 on:
@@ -46,3 +46,30 @@ jobs:
         run: |
           docker run --rm -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=safe.directory -e GIT_CONFIG_VALUE_0='*' \
             -v "$PWD:/repo" zricethezav/gitleaks:v8.30.1 git /repo --redact --log-opts=--all
+
+  imagem-producao:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Imagem de produção da API e da migração (só build, nada é publicado)
+        run: |
+          docker build -f api/Dockerfile.producao --target api -t ameta-api:ci .
+          docker build -f api/Dockerfile.producao --target migracao -t ameta-migracao:ci .
+      - name: A imagem roda sem root e sem shell
+        run: |
+          test "$(docker image inspect ameta-api:ci --format '{{.Config.User}}')" = "nonroot"
+          ! docker run --rm --entrypoint sh ameta-api:ci -c true
+
+  infra:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra/terraform
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.13.3
+      - run: terraform fmt -check -recursive
+      - run: terraform init -backend=false -input=false
+      - run: terraform validate

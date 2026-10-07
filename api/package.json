@@ -9,6 +9,7 @@
     "postinstall": "prisma generate",
     "import:planilha": "tsx --env-file-if-exists=../.env scripts/importar-planilha.ts",
     "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json && node -e \"require('node:fs').cpSync('src/seguranca/senhas-vazadas.txt.gz','dist/src/seguranca/senhas-vazadas.txt.gz')\"",
     "test": "vitest run",
     "db:studio": "dotenv -e ../.env -- prisma studio",
     "dev": "tsx --env-file-if-exists=../.env src/servidor.ts",

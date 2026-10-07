@@ -9,6 +9,8 @@ const esquema = z.object({
   API_PORTA: z.coerce.number().int().default(3000),
   /** Endereço em que a API escuta: só o próprio computador, ou 0.0.0.0 dentro do contêiner */
   API_HOST: z.string().optional(),
+  /** Quantos proxies confiáveis ficam na frente da API (na AWS: CloudFront + balanceador = 2). Define o IP real nos logs e limites. */
+  CONFIAR_PROXY: z.coerce.number().int().min(0).max(5).default(0),
   /** Conexão da API com o papel ameta_app (sem ser dono das tabelas): o RLS vale para ela. Gerada por npm run api:chaves. */
   DATABASE_URL_APP: z.string().optional(),
   /** Endereço do front (CORS). Na Fase 3 é o Vite; em produção, o domínio real. */

@@ -21,9 +21,9 @@ export const smtp = { fora: false };
 const prismaApp = criarPrisma(urlAppTeste());
 
 /** O prisma recebido (dono do banco) fica para preparar dados; a API usa o papel ameta_app_teste. */
-export async function novaApp(_prisma: PrismaClient) {
+export async function novaApp(_prisma: PrismaClient, ambiente: Record<string, string> = {}) {
   return criarApp({
-    prisma: prismaApp, config: lerConfig(),
+    prisma: prismaApp, config: lerConfig({ ...process.env, ...ambiente }),
     enviarEmail: async (m) => {
       if (smtp.fora) throw new Error('SMTP fora do ar');
       caixaDeEntrada.push(m);

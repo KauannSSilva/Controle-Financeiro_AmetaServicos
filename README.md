@@ -8,6 +8,7 @@ Aplicação web que substitui a planilha de controle de NFS-e e P.Os da Ameta Se
 - **Fase 1 — Banco de dados:** [docs/fase-1-banco-de-dados.md](docs/fase-1-banco-de-dados.md)
 - **Fase 2 — API, login com MFA e perfis:** [docs/fase-2-api.md](docs/fase-2-api.md)
 - **Fase 4 — Segurança (OWASP Top 10 / ASVS L2):** [docs/fase-4-seguranca.md](docs/fase-4-seguranca.md) · rotas: [docs/inventario-rotas.md](docs/inventario-rotas.md)
+- **Fase 5 — Preparação para a AWS (arquitetura, custo, checklist de deploy):** [docs/fase-5-aws.md](docs/fase-5-aws.md) · Terraform em [infra/terraform](infra/terraform) (proposta, não aplicada)
 
 ## Rodar o banco no seu computador (grátis)
 

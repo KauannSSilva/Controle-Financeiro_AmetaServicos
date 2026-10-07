@@ -15,7 +15,11 @@ import { hashSenha, validarPoliticaSenha } from '../src/seguranca/senha.js';
 import { criarUsuario } from '../src/usuarios/usuarios.js';
 
 const { values } = parseArgs({
-  options: { email: { type: 'string' }, nome: { type: 'string' }, 'redefinir-senha': { type: 'boolean' } },
+  options: {
+    email: { type: 'string' }, nome: { type: 'string' }, 'redefinir-senha': { type: 'boolean' },
+    // Na AWS a senha chega por variável (SENHA_ADMIN): fica provisória e precisa ser trocada no primeiro login
+    provisoria: { type: 'boolean' },
+  },
 });
 if (!values.email) {
   console.error('Uso: npm run seed:admin -- --email voce@ameta.com.br');
@@ -85,7 +89,7 @@ try {
     await prisma.$transaction([
       prisma.usuario.update({
         where: { id: u.id },
-        data: { senhaHash: await hashSenha(senha), deveTrocarSenha: false, tentativasFalhas: 0, bloqueadoAte: null, ativo: true },
+        data: { senhaHash: await hashSenha(senha), deveTrocarSenha: !!values.provisoria, tentativasFalhas: 0, bloqueadoAte: null, ativo: true },
       }),
       prisma.sessao.updateMany({ where: { usuarioId: u.id, revogadoEm: null }, data: { revogadoEm: new Date() } }),
       prisma.logAuditoria.createMany({ data: { usuarioId: u.id, acao: 'SENHA_REDEFINIDA_CLI', entidade: 'usuarios', entidadeId: u.id } }),
@@ -99,7 +103,7 @@ try {
     const nome = values.nome?.trim() || (await perguntar('Seu nome: '));
     if (nome.length < 2) throw new ErroRegra('Informe o nome');
     const senha = await lerSenhaNova();
-    await criarUsuario(prisma, cripto, { nome, email: values.email, perfil: 'ADMIN', senha }, {}, { deveTrocarSenha: false });
+    await criarUsuario(prisma, cripto, { nome, email: values.email, perfil: 'ADMIN', senha }, {}, { deveTrocarSenha: !!values.provisoria });
     console.log(`ADMIN ${values.email} criado. No primeiro login a API pede para cadastrar o autenticador (MFA).`);
   }
 } catch (e) {

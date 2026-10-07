@@ -43,7 +43,8 @@ export async function criarApp({ prisma, config, logger = false, enviarEmail }: 
       : logger,
     genReqId: () => randomUUID(),
     bodyLimit: 100 * 1024,
-    trustProxy: false, // na AWS (Fase 5) passa a confiar só no balanceador
+    // Na AWS: CloudFront + balanceador na frente (CONFIAR_PROXY=2); no computador, ninguém
+    trustProxy: config.CONFIAR_PROXY ? (_endereco: string, salto: number) => salto < config.CONFIAR_PROXY : false,
   }).withTypeProvider<ZodTypeProvider>();
 
   const cripto = new Cripto(config.CHAVE_CRIPTOGRAFIA, config.CHAVE_HMAC);

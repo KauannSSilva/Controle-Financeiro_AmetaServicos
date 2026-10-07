@@ -1,0 +1,44 @@
+# Imagem de produção da API (AWS ECS Fargate). Multi-stage: o TypeScript é compilado na etapa "build"
+# e a imagem final só tem o JavaScript, as dependências de produção e o Node, sem shell e sem root.
+#
+#   docker build -f api/Dockerfile.producao --target api      -t ameta-api .
+#   docker build -f api/Dockerfile.producao --target migracao -t ameta-migracao .
+
+FROM node:22-bookworm-slim AS base
+RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY package.json package-lock.json ./
+COPY api/package.json api/
+COPY web/package.json web/
+
+# Compila a API e gera o cliente do Prisma
+FROM base AS build
+COPY api/prisma api/prisma
+RUN npm ci -w api
+COPY api api
+RUN npm -w api run build
+
+# Tarefas avulsas com o usuário dono do banco: migrações (antes de cada versão nova), primeiro ADMIN e importação
+FROM build AS migracao
+USER node
+WORKDIR /app/api
+CMD ["node", "scripts/producao.mjs"]
+
+# Só as dependências de produção (sem scripts de instalação); o cliente do Prisma vem pronto da etapa build
+FROM base AS dependencias
+RUN npm ci -w api --omit=dev --ignore-scripts && npm cache clean --force
+COPY --from=build /app/node_modules/.prisma /app/node_modules/.prisma
+
+# Imagem final: Node sem shell nem gerenciador de pacotes, usuário sem privilégios (uid 65532)
+FROM gcr.io/distroless/nodejs22-debian12:nonroot AS api
+WORKDIR /app
+COPY --from=dependencias /app/node_modules /app/node_modules
+COPY --from=build /app/api/package.json /app/api/package.json
+COPY --from=build /app/api/dist /app/api/dist
+COPY --from=build /app/api/prisma/schema.prisma /app/api/prisma/schema.prisma
+WORKDIR /app/api
+ENV NODE_ENV=production API_HOST=0.0.0.0 API_PORTA=3000
+EXPOSE 3000
+USER nonroot
+CMD ["dist/src/servidor.js"]
