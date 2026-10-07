@@ -1,0 +1,1 @@
+Coloque aqui a planilha do dia da troca com o nome planilha.xlsx. Ela nunca vai para o Git.

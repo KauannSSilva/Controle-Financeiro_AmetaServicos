@@ -1,0 +1,77 @@
+# Produção no Lightsail (opção econômica): Caddy (HTTPS) -> site (nginx) -> API -> banco gerenciado do Lightsail.
+# Roda no servidor, na pasta /opt/ameta/infra/lightsail, com o arquivo .env criado por ./criar-env.sh.
+#   docker compose up -d --build                     sobe tudo (antes, aplica as migrações)
+#   docker compose run --rm migracao admin ...       primeiro ADMIN
+#   docker compose run --rm migracao importar        importa planilha/planilha.xlsx
+# Passo a passo: docs/fase-5-aws.md
+name: ameta
+
+x-endurecido: &endurecido
+  restart: unless-stopped
+  read_only: true
+  tmpfs: [/tmp]
+  security_opt: [no-new-privileges:true]
+  cap_drop: [ALL]
+  logging:
+    driver: json-file
+    options: { max-size: 10m, max-file: "5" }
+
+services:
+  # HTTPS com certificado gratuito (Let's Encrypt), renovado sozinho
+  caddy:
+    <<: *endurecido
+    image: caddy:2.10-alpine
+    cap_add: [NET_BIND_SERVICE]
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMINIO: ${DOMINIO:?Defina DOMINIO no .env}
+      EMAIL_CERTIFICADO: ${EMAIL_CERTIFICADO:?Defina EMAIL_CERTIFICADO no .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_dados:/data
+      - caddy_config:/config
+    depends_on: [site]
+
+  site:
+    <<: *endurecido
+    build: { context: ../.., dockerfile: web/Dockerfile }
+    image: ameta-site:producao
+    depends_on: [api]
+
+  # Migrações + papel ameta_app com o usuário dono do banco. Roda e termina a cada "up".
+  migracao:
+    build: { context: ../.., dockerfile: api/Dockerfile.producao, target: migracao }
+    image: ameta-migracao:producao
+    entrypoint: ["node", "scripts/producao.mjs"]
+    command: ["migrar"]
+    env_file: .env
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    environment:
+      PLANILHA_ARQUIVO: /planilha/planilha.xlsx
+    volumes:
+      - ./planilha:/planilha:ro
+
+  api:
+    <<: *endurecido
+    build: { context: ../.., dockerfile: api/Dockerfile.producao, target: api }
+    image: ameta-api:producao
+    env_file: .env
+    environment:
+      # Remove as credenciais do dono: a API só usa DATABASE_URL_APP (papel ameta_app, com RLS)
+      DB_USUARIO: ""
+      DB_SENHA: ""
+      ORIGEM_FRONT: https://${DOMINIO}
+      URL_SITE: https://${DOMINIO}
+      CONFIAR_PROXY: "1" # o nginx do site; o Caddy já entrega o IP real do visitante
+      COOKIE_SEGURO: "true"
+    depends_on:
+      migracao: { condition: service_completed_successfully }
+
+volumes:
+  caddy_dados:
+  caddy_config:

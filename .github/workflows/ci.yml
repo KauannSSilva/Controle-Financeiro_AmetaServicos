@@ -62,9 +62,12 @@ jobs:
 
   infra:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        pasta: [infra/terraform, infra/lightsail/terraform]
     defaults:
       run:
-        working-directory: infra/terraform
+        working-directory: ${{ matrix.pasta }}
     steps:
       - uses: actions/checkout@v4
       - uses: hashicorp/setup-terraform@v3
@@ -73,3 +76,14 @@ jobs:
       - run: terraform fmt -check -recursive
       - run: terraform init -backend=false -input=false
       - run: terraform validate
+
+  lightsail:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compose da opção econômica é válido
+        working-directory: infra/lightsail
+        run: |
+          printf 'DOMINIO=exemplo.com.br\nEMAIL_CERTIFICADO=ti@exemplo.com.br\n' > .env
+          docker compose config --quiet
+      - run: bash -n infra/lightsail/criar-env.sh && bash -n infra/lightsail/terraform/preparar-servidor.sh

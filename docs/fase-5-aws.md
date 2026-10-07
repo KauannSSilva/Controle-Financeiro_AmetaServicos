@@ -12,6 +12,7 @@ Este documento cobre:
 | `api/Dockerfile.producao` | Imagem de produção multi-stage. A imagem final tem só Node, sem shell, sem gerenciador de pacotes e sem root (uid 65532). |
 | `api/scripts/producao.mjs` | Tarefas avulsas na AWS: migrações, primeiro ADMIN e importação da planilha. |
 | `infra/terraform/` | Infraestrutura como código (Terraform). É uma proposta: validada (`terraform validate`), nunca aplicada. |
+| `infra/lightsail/` | **Opção econômica** (≈ US$ 28/mês): um servidor Lightsail com HTTPS, site e API, mais o banco gerenciado do Lightsail. Veja [a seção própria](#opção-econômica-lightsail). |
 | `.github/workflows/ci.yml` | O CI agora também gera a imagem de produção e valida o Terraform a cada envio. |
 
 ## Arquitetura
@@ -86,7 +87,7 @@ Os preços são do catálogo público da AWS para São Paulo, consultado em 07/1
 - **Para gastar menos:**
   - Reservar o banco por 1 ano reduz cerca de 30% dele.
   - Desligar o Container Insights economiza uns US$ 3.
-  - Existe também uma versão mais simples, um único servidor com tudo dentro por cerca de US$ 20 a 30/mês. Ela abre mão do WAF, do banco gerenciado com backups e da volta automática de versão, e eu não recomendo para dados de faturamento.
+  - A [opção econômica no Lightsail](#opção-econômica-lightsail) custa cerca de **US$ 28/mês** (≈ R$ 155).
 - **Alerta de gastos:** o checklist inclui um orçamento no AWS Budgets que avisa por e-mail se o mês passar de US$ 150.
 
 ## O que a Ameta precisa providenciar
@@ -190,3 +191,104 @@ Rodar num computador com AWS CLI, Docker e Terraform 1.13 (ou pelo AWS CloudShel
 - **Versão ruim da API:** o ECS volta sozinho. Também dá para rodar `terraform apply` com a `versao_api` anterior.
 - **Dados apagados ou corrompidos:** restaurar o RDS para um minuto antes do problema. Ele cria um banco novo; depois é só apontar o Terraform para ele.
 - **Desligar tudo:** `terraform destroy`. Ele exige tirar antes a proteção contra exclusão do banco e do balanceador, de propósito, e o banco deixa um snapshot final.
+
+## Opção econômica (Lightsail)
+
+Para uma equipe pequena, a estrutura acima é mais do que o necessário. O **Amazon Lightsail** é a parte "preço fechado" da AWS, na mesma região de São Paulo. Os dados continuam no Brasil e na conta AWS da Ameta.
+
+```mermaid
+flowchart LR
+  U[Equipe da Ameta] -->|HTTPS| C[Caddy<br/>certificado grátis]
+  subgraph Servidor Lightsail 2 GB
+    C --> S[Site nginx] --> A[API]
+  end
+  A -->|TLS, rede privada| B[(Banco gerenciado Lightsail<br/>PostgreSQL 16)]
+```
+
+### Custo por mês (São Paulo, 07/10/2026)
+
+| Item | Configuração | US$/mês |
+|---|---|---:|
+| Servidor | Lightsail 2 GB, 2 vCPUs, 60 GB SSD, 3 TB de tráfego e IP fixo incluídos | 11,77 |
+| Banco gerenciado | PostgreSQL 16, 1 GB, 40 GB SSD, backup diário e volta a qualquer minuto dos últimos 7 dias | 14,72 |
+| Cópias da máquina | 7 cópias diárias automáticas (US$ 0,05 por GB guardado) | ≈ 1,00 |
+| **Total** | | **≈ 27,50** (≈ R$ 155) |
+
+- **Banco com cópia em outra zona:** plano `micro_ha_2_0`, mais uns US$ 15 (total ≈ US$ 42).
+- **Mais barato ainda (≈ US$ 13):** banco num contêiner do próprio servidor, protegido só pelas cópias diárias da máquina. Não recomendado para os dados de faturamento.
+- Em uso, o sistema todo ocupou uns 150 MB de memória no teste. Os 2 GB dão folga para montar as imagens no próprio servidor.
+
+### O que muda em relação à estrutura completa
+
+| | Completa (≈ US$ 119) | Lightsail (≈ US$ 28) |
+|---|---|---|
+| Senha + MFA, perfis, RLS, auditoria, cabeçalhos, limites de tentativa | Sim | Sim (é o próprio sistema) |
+| HTTPS | Certificado da AWS | Let's Encrypt, renovado sozinho pelo Caddy |
+| Banco privado, criptografado, com backup e volta a qualquer minuto | 14 dias | 7 dias |
+| Firewall | WAF contra ataques comuns e excesso de acessos | Só as portas 80 e 443 abertas; SSH só pelo console da AWS |
+| Se o servidor cair | Outra cópia da API sobe sozinha | Contêineres reiniciam sozinhos; se a máquina cair, volta a cópia do dia |
+| Atualizações | Imagens novas no ECR | `git pull` e `docker compose up` no servidor; segurança do Ubuntu automática |
+| Segredos | Secrets Manager | Arquivo `.env` no servidor, só o dono lê (com cópia no cofre de senhas da empresa) |
+
+### O que a Ameta precisa providenciar
+
+Igual à lista acima, com duas diferenças: não precisa de Route 53 (basta criar **um registro A** do domínio apontando para o IP do servidor, no provedor de DNS atual), e o e-mail dos convites precisa usar a porta **587** ou **465** (o Lightsail bloqueia a porta 25).
+
+### Primeiro deploy
+
+1. **Criar o servidor e o banco** (num computador com AWS CLI e Terraform, ou pelo CloudShell):
+   ```bash
+   cd infra/lightsail/terraform
+   terraform init
+   terraform apply
+   ```
+   Anote as saídas `ip_do_servidor` e `banco_endereco`. A senha do banco sai com `terraform output -raw banco_senha_dono`.
+   O servidor já nasce com Docker, atualizações automáticas de segurança e o código em `/opt/ameta`.
+2. **DNS:** registro A de `controle.ametaservicos.com.br` para o `ip_do_servidor`. Espere ele responder (`nslookup`) antes do passo 5, porque o certificado HTTPS depende disso.
+3. **Entrar no servidor:** console do Lightsail → servidor `ameta-nfse-servidor` → **Conectar usando SSH** (abre um terminal no navegador).
+4. **Criar o `.env`** (uma vez só; ele guarda as chaves de criptografia):
+   ```bash
+   cd /opt/ameta/infra/lightsail
+   read -rs DB_SENHA && export DB_SENHA        # cole a senha do banco e Enter (não aparece)
+   read -rs SMTP_SENHA && export SMTP_SENHA    # senha do e-mail dos convites
+   DOMINIO=controle.ametaservicos.com.br EMAIL_CERTIFICADO=tecnologia@ametaservicos.com.br \
+   DB_HOST=<banco_endereco> SMTP_HOST=smtp.office365.com SMTP_USUARIO=nao-responda@ametaservicos.com.br \
+   ./criar-env.sh
+   ```
+   Guarde uma cópia do `.env` no cofre de senhas da empresa: sem as chaves, um backup do banco não abre.
+5. **Subir tudo** (a primeira vez leva uns 10 minutos; as migrações rodam antes da API):
+   ```bash
+   docker compose up -d --build
+   ```
+6. **Primeiro ADMIN** (senha provisória, trocada no primeiro login, depois o MFA):
+   ```bash
+   read -rs SENHA_ADMIN && export SENHA_ADMIN
+   docker compose run --rm -e SENHA_ADMIN migracao admin --nome "Nome Real" --email admin@ametaservicos.com.br
+   ```
+7. **Alertas:** no console do Lightsail, em Conta → Notificações, cadastre o e-mail de alertas. Depois crie alarmes de "falha na verificação de status" no servidor e de CPU alta no banco. Crie também um orçamento no AWS Budgets que avisa se o mês passar de US$ 40.
+8. **Teste de restauração** (uma vez): no banco, "Criar banco a partir de um ponto no tempo", conferir e apagar.
+
+Testado neste ambiente com um banco PostgreSQL 16 com TLS e dono sem superusuário, como o do Lightsail: migrações, papel da API, primeiro ADMIN, login com troca de senha, MFA e termos, e importação da planilha (8.507 linhas, totais batendo).
+
+### Versões seguintes
+
+```bash
+cd /opt/ameta
+git pull
+cd infra/lightsail
+docker compose up -d --build
+```
+
+As migrações rodam sozinhas antes da API nova. Para voltar atrás: `git checkout <versão anterior>` e o mesmo `docker compose up -d --build`. Se uma migração estragar dados, crie um banco a partir de um ponto no tempo antes da versão e troque o `DB_HOST` e o `DATABASE_URL_APP` no `.env`.
+
+### Dia da troca
+
+1. No terminal do navegador, use **Carregar arquivo** para enviar a planilha (ela chega em `/home/ubuntu`).
+2. Importar e apagar a cópia:
+   ```bash
+   mv ~/Controle_AMETA.xlsx /opt/ameta/infra/lightsail/planilha/planilha.xlsx
+   cd /opt/ameta/infra/lightsail
+   docker compose run --rm migracao importar
+   rm planilha/planilha.xlsx
+   ```
+3. Siga a conferência da seção [Dia da troca](#dia-da-troca-planilha--site).

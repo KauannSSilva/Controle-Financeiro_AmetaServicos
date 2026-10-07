@@ -23,12 +23,20 @@ try {
   // format(%I, %L) monta o comando com nome e senha escapados pelo próprio PostgreSQL
   const comandos = await prisma.$queryRaw<{ sql: string }[]>`
     SELECT CASE WHEN EXISTS (SELECT 1 FROM pg_roles WHERE rolname = ${usuario})
-      THEN format('ALTER ROLE %I LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS PASSWORD %L', ${usuario}::text, ${senha}::text)
+      THEN format('ALTER ROLE %I LOGIN PASSWORD %L', ${usuario}::text, ${senha}::text)
       ELSE format('CREATE ROLE %I LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS PASSWORD %L', ${usuario}::text, ${senha}::text)
     END AS sql
     UNION ALL
     SELECT format('GRANT ameta_app TO %I', ${usuario}::text) WHERE ${usuario} <> 'ameta_app'`;
   for (const { sql } of comandos) await prisma.$executeRawUnsafe(sql);
+  // No banco gerenciado da AWS o dono não é superusuário e não pode repetir NOSUPERUSER/NOBYPASSRLS no ALTER;
+  // então confere aqui que o papel da API não tem nenhum desses poderes.
+  const [papel] = await prisma.$queryRaw<{ poderoso: boolean }[]>`
+    SELECT rolsuper OR rolbypassrls OR rolcreaterole OR rolcreatedb AS poderoso FROM pg_roles WHERE rolname = ${usuario}`;
+  if (!papel || papel.poderoso) {
+    console.error(`O papel ${usuario} tem privilégios demais (superusuário, BYPASSRLS, CREATEROLE ou CREATEDB). Corrija no banco antes de subir a API.`);
+    process.exit(1);
+  }
   console.log(`Papel da API pronto: ${usuario} (sem privilégio de dono; o RLS vale para ele).`);
 } finally {
   await prisma.$disconnect();
