@@ -1,4 +1,7 @@
-# Ambiente local. Por enquanto só o banco; a API e o front entram nas próximas fases.
+# Ambiente local.
+# - npm run db:up    -> só o banco e o Mailpit (a API e o site rodam com npm run api / npm run site)
+# - npm run tudo (docker compose up) -> tudo em contêineres: banco, Mailpit, migrações, API e site em http://localhost:8080
+# Os segredos vêm do arquivo .env (npm run api:chaves), nunca deste arquivo.
 services:
   postgres:
     image: postgres:16-alpine
@@ -18,6 +21,60 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  # Recebe os convites enviados pela API e mostra em http://localhost:8025. Nada sai para a internet.
+  mailpit:
+    image: axllent/mailpit:v1.31
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
+
+  # Aplica as migrações e configura o usuário ameta_app (sem ser dono das tabelas). Roda e termina.
+  migracao:
+    build: { context: ., dockerfile: api/Dockerfile }
+    image: ameta-api:local
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ameta}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-ameta}?schema=public
+      BANCO_HOST: postgres
+    command: ["npm", "run", "db:migrate"]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  api:
+    image: ameta-api:local
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ameta}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-ameta}?schema=public
+      BANCO_HOST: postgres
+      API_HOST: 0.0.0.0
+      SMTP_HOST: mailpit
+      SMTP_PORTA: "1025"
+      ORIGEM_FRONT: http://localhost:8080
+      URL_SITE: http://localhost:8080
+    # Sem porta publicada: só o site (nginx) fala com a API
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    depends_on:
+      migracao: { condition: service_completed_successfully }
+      mailpit: { condition: service_started }
+
+  site:
+    build: { context: ., dockerfile: web/Dockerfile }
+    image: ameta-site:local
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    depends_on:
+      api: { condition: service_started }
 
 volumes:
   pgdata:

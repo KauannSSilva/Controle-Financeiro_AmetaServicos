@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+@theme {
+  --color-marca-50: #eef0fa;
+  --color-marca-100: #d9ddf2;
+  --color-marca-600: #2a2f7a;
+  --color-marca-700: #1c2066;
+  --color-marca-800: #111555;
+  --color-marca-900: #0b0e3d;
+  --color-teal-marca: #439295;
+  --font-sans: "Inter", ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+}
+
+body {
+  @apply bg-slate-100 text-slate-800 antialiased;
+}
+
+/* Foco visível para quem usa teclado */
+:focus-visible {
+  @apply outline-2 outline-offset-2 outline-teal-marca;
+}

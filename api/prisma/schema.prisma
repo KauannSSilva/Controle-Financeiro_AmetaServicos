@@ -78,7 +78,7 @@ model ItemPo {
   atualizadoPorId String?   @map("atualizado_por") @db.Uuid
   excluidoEm      DateTime? @map("excluido_em") @db.Timestamptz(3)
 
-  ordemCompra OrdemCompra      @relation(fields: [ordemCompraId], references: [id], onDelete: Restrict)
+  ordemCompra OrdemCompra       @relation(fields: [ordemCompraId], references: [id], onDelete: Restrict)
   historico   HistoricoStatus[]
 
   @@index([status])
@@ -107,7 +107,7 @@ model HistoricoStatus {
   @@map("historico_status")
 }
 
-/// Nome, e-mail e segredo MFA são gravados criptografados (AES-256-GCM) pela API na Fase 2.
+/// Nome, e-mail e segredo MFA são gravados criptografados (AES-256-GCM) pela API (src/seguranca/cripto.ts).
 model Usuario {
   id                 String        @id @default(uuid()) @db.Uuid
   nomeCifrado        Bytes         @map("nome_cifrado")
@@ -125,6 +125,18 @@ model Usuario {
   aceiteTermosVersao String?       @map("aceite_termos_versao") @db.VarChar(20)
   aceiteTermosEm     DateTime?     @map("aceite_termos_em") @db.Timestamptz(3)
   ativo              Boolean       @default(true)
+  /// Senha criada pelo ADM: o usuário troca no primeiro acesso
+  deveTrocarSenha    Boolean       @default(true) @map("deve_trocar_senha")
+  /// Exclusão pelo ADM (soft delete): some das listas, histórico e auditoria continuam apontando para ele
+  excluidoEm         DateTime?     @map("excluido_em") @db.Timestamptz(3)
+  /// Convite por e-mail: SHA-256 do token do link (o token em si só vai no e-mail)
+  conviteTokenHash   String?       @unique @map("convite_token_hash") @db.VarChar(64)
+  conviteExpiraEm    DateTime?     @map("convite_expira_em") @db.Timestamptz(3)
+  /// Nulo = convite ainda não aceito: a pessoa não consegue entrar
+  conviteAceitoEm    DateTime?     @map("convite_aceito_em") @db.Timestamptz(3)
+  /// Versão dos Termos de Uso e da Política de Privacidade aceita por último (nulo = nunca aceitou)
+  termosVersaoAceita String?       @map("termos_versao_aceita") @db.VarChar(20)
+  termosAceitosEm    DateTime?     @map("termos_aceitos_em") @db.Timestamptz(3)
   criadoEm           DateTime      @default(now()) @map("criado_em") @db.Timestamptz(3)
   atualizadoEm       DateTime      @updatedAt @map("atualizado_em") @db.Timestamptz(3)
 
@@ -150,15 +162,19 @@ model CodigoRecuperacaoMfa {
 }
 
 model Sessao {
-  id               String    @id @default(uuid()) @db.Uuid
-  usuarioId        String    @map("usuario_id") @db.Uuid
-  refreshTokenHash String    @unique @map("refresh_token_hash") @db.VarChar(128)
-  expiraEm         DateTime  @map("expira_em") @db.Timestamptz(3)
-  revogadoEm       DateTime? @map("revogado_em") @db.Timestamptz(3)
-  ultimoUsoEm      DateTime? @map("ultimo_uso_em") @db.Timestamptz(3)
-  ip               String?   @db.VarChar(45)
-  userAgent        String?   @map("user_agent") @db.VarChar(300)
-  criadoEm         DateTime  @default(now()) @map("criado_em") @db.Timestamptz(3)
+  id                     String    @id @default(uuid()) @db.Uuid
+  usuarioId              String    @map("usuario_id") @db.Uuid
+  refreshTokenHash       String    @unique @map("refresh_token_hash") @db.VarChar(128)
+  expiraEm               DateTime  @map("expira_em") @db.Timestamptz(3)
+  revogadoEm             DateTime? @map("revogado_em") @db.Timestamptz(3)
+  ultimoUsoEm            DateTime? @map("ultimo_uso_em") @db.Timestamptz(3)
+  /**
+   * Última vez que a pessoa confirmou a senha e o código MFA nesta sessão (ações sensíveis do ADMIN)
+   */
+  identidadeConfirmadaEm DateTime? @map("identidade_confirmada_em") @db.Timestamptz(3)
+  ip                     String?   @db.VarChar(45)
+  userAgent              String?   @map("user_agent") @db.VarChar(300)
+  criadoEm               DateTime  @default(now()) @map("criado_em") @db.Timestamptz(3)
 
   usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 

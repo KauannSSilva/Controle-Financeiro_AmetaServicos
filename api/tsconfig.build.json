@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": "dist",
+    "rootDir": ".",
+    "sourceMap": false
+  },
+  "include": ["src", "scripts/configurar-banco.ts", "scripts/criar-admin.ts", "scripts/importar-planilha.ts"]
+}

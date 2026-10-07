@@ -8,7 +8,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
-import { criarPrisma } from '../src/db.js';
+import { criarPrisma, entrarComoSistema } from '../src/db.js';
 import { ABA_PRINCIPAL, gravarNoBanco, lerPlanilha } from '../src/importacao/importar.js';
 import { validarCarga } from '../src/importacao/validar.js';
 
@@ -35,6 +35,7 @@ const csv = (linhas: (string | number)[][]) =>
   '﻿' + linhas.map((l) => l.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\r\n') + '\r\n';
 
 const prisma = criarPrisma();
+entrarComoSistema();
 try {
   console.log(`Lendo ${arquivo} (aba ${values.aba})...`);
   const leitura = await lerPlanilha(arquivo, values.aba);
